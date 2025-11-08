@@ -1,0 +1,80 @@
+package main
+
+import (
+	"log"
+	"os"
+	"simplelog/database"
+	"simplelog/handlers"
+	"simplelog/middleware"
+
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
+	"github.com/gofiber/fiber/v3/middleware/logger"
+	"github.com/gofiber/fiber/v3/middleware/static"
+	"github.com/joho/godotenv"
+)
+
+func main() {
+	// Load environment variables
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found")
+	}
+
+	// Initialize database
+	database.Init()
+
+	// Create Fiber app
+	app := fiber.New(fiber.Config{
+		ErrorHandler: func(c fiber.Ctx, err error) error {
+			code := fiber.StatusInternalServerError
+			if e, ok := err.(*fiber.Error); ok {
+				code = e.Code
+			}
+			return c.Status(code).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		},
+	})
+
+	// Middleware
+	app.Use(logger.New())
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowCredentials: true,
+	}))
+
+	// Serve static files
+	app.Use("/", static.New("./public"))
+
+	// Auth routes (no auth required)
+	app.Get("/auth/login", handlers.HandleLogin)
+	app.Get("/oidc/callback", handlers.HandleCallback)
+	app.Get("/auth/logout", handlers.HandleLogout)
+
+	// API routes (auth required)
+	api := app.Group("/api")
+	api.Use(middleware.RequireAuth)
+
+	// User info
+	api.Get("/me", handlers.GetCurrentUserInfo)
+
+	// Public read routes (authenticated users can read all posts)
+	api.Get("/posts", handlers.GetPosts)
+	api.Get("/posts/:id", handlers.GetPost)
+
+	// Write routes (all authenticated users can create posts)
+	api.Post("/posts", handlers.CreatePost)
+
+	// Update/Delete routes (only owner or admin)
+	api.Put("/posts/:id", handlers.UpdatePost)
+	api.Delete("/posts/:id", handlers.DeletePost)
+
+	// Start server
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+
+	log.Printf("Server starting on http://localhost:%s", port)
+	log.Fatal(app.Listen(":" + port))
+}
