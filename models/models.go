@@ -11,6 +11,7 @@ type User struct {
 	Email     string    `gorm:"uniqueIndex" json:"Email"`
 	Name      string    `json:"Name"`
 	Intro     string    `json:"Intro"`
+	Avatar    string    `json:"Avatar"`
 	Role      string    `gorm:"default:user" json:"Role"` // admin or user
 	CreatedAt time.Time `json:"CreatedAt"`
 	UpdatedAt time.Time `json:"UpdatedAt"`

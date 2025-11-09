@@ -18,6 +18,7 @@ type LogtoClaims struct {
 	Sub        string                 `json:"sub"`
 	Email      string                 `json:"email"`
 	Name       string                 `json:"name"`
+	Picture    string                 `json:"picture"`
 	Roles      []string               `json:"roles"`
 	CustomData map[string]interface{} `json:"custom_data"`
 }
@@ -65,11 +66,17 @@ func RequireAuth(c fiber.Ctx) error {
 		}
 	}
 
-	// Get intro from custom_data
+	// Get intro from custom_data and avatar from picture field
 	intro := ""
+	avatar := userInfo.Picture // Avatar comes from standard OIDC 'picture' field
+
+	log.Printf("Picture field: %s", avatar)
+
 	if userInfo.CustomData != nil {
+		log.Printf("CustomData contents: %+v", userInfo.CustomData)
 		if customIntro, ok := userInfo.CustomData["intro"].(string); ok {
 			intro = customIntro
+			log.Printf("Found intro: %s", intro)
 		}
 	}
 
@@ -80,15 +87,16 @@ func RequireAuth(c fiber.Ctx) error {
 		// Create new user
 		log.Printf("Creating new user: %s with role: %s", userInfo.Email, role)
 		user = models.User{
-			ID:    userInfo.Sub,
-			Email: userInfo.Email,
-			Name:  userInfo.Name,
-			Intro: intro,
-			Role:  role,
+			ID:     userInfo.Sub,
+			Email:  userInfo.Email,
+			Name:   userInfo.Name,
+			Intro:  intro,
+			Avatar: avatar,
+			Role:   role,
 		}
 		database.DB.Create(&user)
 	} else {
-		// Update existing user's role and intro if changed
+		// Update existing user's role, intro, and avatar if changed
 		updated := false
 		if user.Role != role {
 			log.Printf("Updating user role from %s to %s", user.Role, role)
@@ -98,6 +106,11 @@ func RequireAuth(c fiber.Ctx) error {
 		if user.Intro != intro {
 			log.Printf("Updating user intro")
 			user.Intro = intro
+			updated = true
+		}
+		if user.Avatar != avatar {
+			log.Printf("Updating user avatar")
+			user.Avatar = avatar
 			updated = true
 		}
 		if updated {

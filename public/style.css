@@ -58,6 +58,14 @@ nav {
     position: relative;
 }
 
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--brand-color);
+}
+
 .user-menu-trigger {
     display: flex;
     align-items: center;
@@ -367,6 +375,21 @@ nav {
 .profile-container {
     max-width: 800px;
     margin: 0 auto;
+}
+
+.profile-avatar-section {
+    display: flex;
+    justify-content: center;
+    padding: 2rem 0;
+}
+
+.profile-avatar-img {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--brand-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .profile-header {

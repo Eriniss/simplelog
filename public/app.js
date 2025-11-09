@@ -88,8 +88,21 @@ async function loadCurrentUser() {
 function showUserInfo() {
     const userInfo = document.getElementById('user-info');
 
+    console.log('Current user data:', currentUser);
+    console.log('Avatar value:', currentUser.Avatar);
+
     document.getElementById('user-name').textContent = currentUser.Name || currentUser.Email;
     document.getElementById('user-role').textContent = currentUser.Role;
+
+    // Show avatar if available
+    const avatarImg = document.getElementById('user-avatar');
+    if (currentUser.Avatar && currentUser.Avatar.trim() !== '') {
+        console.log('Setting avatar src to:', currentUser.Avatar);
+        avatarImg.src = currentUser.Avatar;
+        avatarImg.style.display = 'block';
+    } else {
+        console.log('No avatar found or empty avatar');
+    }
 
     userInfo.style.display = 'flex';
 }

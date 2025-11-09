@@ -65,11 +65,25 @@ function showUserInfo() {
     document.getElementById('user-name').textContent = currentUser.Name || currentUser.Email;
     document.getElementById('user-role').textContent = currentUser.Role;
 
+    // Show avatar if available
+    const avatarImg = document.getElementById('user-avatar');
+    if (currentUser.Avatar) {
+        avatarImg.src = currentUser.Avatar;
+        avatarImg.style.display = 'block';
+    }
+
     userInfo.style.display = 'flex';
 }
 
 function displayProfile() {
     if (!currentUser) return;
+
+    // Show avatar if available
+    const avatarImg = document.getElementById('profile-avatar-img');
+    if (currentUser.Avatar) {
+        avatarImg.src = currentUser.Avatar;
+        avatarImg.style.display = 'block';
+    }
 
     document.getElementById('profile-name').textContent = currentUser.Name || '-';
     document.getElementById('profile-email').textContent = currentUser.Email || '-';

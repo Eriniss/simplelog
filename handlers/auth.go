@@ -28,7 +28,7 @@ func HandleLogin(c fiber.Ctx) error {
 	appID := os.Getenv("LOGTO_APP_ID")
 	redirectURI := os.Getenv("LOGTO_REDIRECT_URI")
 
-	authURL := fmt.Sprintf("%soidc/auth?client_id=%s&redirect_uri=%s&response_type=code&scope=openid+profile+email+roles",
+	authURL := fmt.Sprintf("%soidc/auth?client_id=%s&redirect_uri=%s&response_type=code&scope=openid+profile+email+roles+custom_data",
 		endpoint, appID, url.QueryEscape(redirectURI))
 
 	return c.Redirect().To(authURL)
