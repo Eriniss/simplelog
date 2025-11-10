@@ -164,6 +164,7 @@ nav {
 .btn-primary {
     background-color: var(--brand-color);
     color: white;
+    text-decoration: none;
 }
 
 .btn-primary:hover {

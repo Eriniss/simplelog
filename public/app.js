@@ -91,7 +91,7 @@ function showUserInfo() {
     console.log('Current user data:', currentUser);
     console.log('Avatar value:', currentUser.Avatar);
 
-    document.getElementById('user-name').textContent = currentUser.Name || currentUser.Email;
+    document.getElementById('user-name').textContent = currentUser.Username || currentUser.Email;
     document.getElementById('user-role').textContent = currentUser.Role;
 
     // Show avatar if available
@@ -138,7 +138,7 @@ function renderPosts(posts) {
         <div class="post-card" onclick="showPost(${post.ID})">
             <h3>${escapeHtml(post.Title)}</h3>
             <div class="post-meta">
-                <span>${post.Author?.Name || '익명'}</span> •
+                <span>${post.Author?.Username || '익명'}</span> •
                 <span>${formatDate(post.CreatedAt)}</span>
             </div>
             <div class="post-preview">${getPreview(post.Content)}</div>
@@ -170,7 +170,7 @@ function renderSinglePost(post) {
     console.log('Author data:', post.Author);
     document.getElementById('detail-title').textContent = post.Title;
     document.getElementById('detail-title').dataset.postId = post.ID;
-    document.getElementById('detail-author').textContent = post.Author?.Name || '익명';
+    document.getElementById('detail-author').textContent = post.Author?.Username || '익명';
 
     // Format date with edit info if post was modified
     let dateText = `작성: ${formatDate(post.CreatedAt)}`;

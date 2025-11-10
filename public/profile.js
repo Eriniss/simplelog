@@ -62,7 +62,7 @@ async function loadCurrentUser() {
 function showUserInfo() {
     const userInfo = document.getElementById('user-info');
 
-    document.getElementById('user-name').textContent = currentUser.Name || currentUser.Email;
+    document.getElementById('user-name').textContent = currentUser.Username || currentUser.Email;
     document.getElementById('user-role').textContent = currentUser.Role;
 
     // Show avatar if available
@@ -83,9 +83,14 @@ function displayProfile() {
     if (currentUser.Avatar) {
         avatarImg.src = currentUser.Avatar;
         avatarImg.style.display = 'block';
+
+        // Add click event to open in new window
+        avatarImg.addEventListener('click', () => {
+            window.open(currentUser.Avatar, '_blank', 'width=800,height=600');
+        });
     }
 
-    document.getElementById('profile-name').textContent = currentUser.Name || '-';
+    document.getElementById('profile-name').textContent = currentUser.Username || '-';
     document.getElementById('profile-email').textContent = currentUser.Email || '-';
     document.getElementById('profile-intro').textContent = currentUser.Intro || '-';
     document.getElementById('profile-id').textContent = currentUser.ID || '-';

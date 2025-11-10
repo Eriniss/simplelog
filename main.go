@@ -57,6 +57,7 @@ func main() {
 
 	// User info
 	api.Get("/me", handlers.GetCurrentUserInfo)
+	api.Patch("/profile", handlers.UpdateProfile)
 
 	// Public read routes (authenticated users can read all posts)
 	api.Get("/posts", handlers.GetPosts)

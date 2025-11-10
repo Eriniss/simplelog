@@ -17,7 +17,7 @@ import (
 type LogtoClaims struct {
 	Sub        string                 `json:"sub"`
 	Email      string                 `json:"email"`
-	Name       string                 `json:"name"`
+	Username   string                 `json:"username"`
 	Picture    string                 `json:"picture"`
 	Roles      []string               `json:"roles"`
 	CustomData map[string]interface{} `json:"custom_data"`
@@ -87,17 +87,22 @@ func RequireAuth(c fiber.Ctx) error {
 		// Create new user
 		log.Printf("Creating new user: %s with role: %s", userInfo.Email, role)
 		user = models.User{
-			ID:     userInfo.Sub,
-			Email:  userInfo.Email,
-			Name:   userInfo.Name,
-			Intro:  intro,
-			Avatar: avatar,
-			Role:   role,
+			ID:       userInfo.Sub,
+			Email:    userInfo.Email,
+			Username: userInfo.Username,
+			Intro:    intro,
+			Avatar:   avatar,
+			Role:     role,
 		}
 		database.DB.Create(&user)
 	} else {
-		// Update existing user's role, intro, and avatar if changed
+		// Update existing user's username, role, intro, and avatar if changed
 		updated := false
+		if user.Username != userInfo.Username {
+			log.Printf("Updating user username from %s to %s", user.Username, userInfo.Username)
+			user.Username = userInfo.Username
+			updated = true
+		}
 		if user.Role != role {
 			log.Printf("Updating user role from %s to %s", user.Role, role)
 			user.Role = role

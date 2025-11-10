@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로필 수정 - SimpleLog</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1 class="logo"><a href="/" style="color: inherit; text-decoration: none;">SimpleLog</a></h1>
+            <nav>
+                <div id="user-info" class="user-info" style="display: none;">
+                    <div class="user-menu-trigger">
+                        <img id="user-avatar" class="user-avatar" src="" alt="프로필" style="display: none;">
+                        <span id="user-name"></span>
+                        <span id="user-role" class="badge"></span>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M4 6l4 4 4-4H4z"/>
+                        </svg>
+                    </div>
+                    <div id="user-dropdown" class="user-dropdown" style="display: none;">
+                        <a href="/profile.html" class="dropdown-item">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm2 2H6a5 5 0 00-5 5v1h12v-1a5 5 0 00-5-5z"/>
+                            </svg>
+                            프로필
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <button id="logout-btn" class="dropdown-item logout-item">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M6 13V3H4v10h2zm6-6l-4 4V7l4 4z"/>
+                            </svg>
+                            로그아웃
+                        </button>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="profile-container">
+            <div class="profile-header">
+                <h2>프로필 수정</h2>
+            </div>
+
+            <div class="profile-card">
+                <form id="profile-form">
+                    <div class="form-group">
+                        <label for="edit-username">사용자명 *</label>
+                        <input type="text" id="edit-username" class="form-control" placeholder="사용자명을 입력하세요" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-avatar">프로필 사진 URL</label>
+                        <input type="text" id="edit-avatar" class="form-control" placeholder="이미지 URL을 입력하세요">
+                        <small style="color: #666;">빈칸으로 두면 기본 이미지가 사용됩니다.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-intro">소개</label>
+                        <textarea id="edit-intro" class="form-control" rows="3" placeholder="자기소개를 입력하세요"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">저장</button>
+                        <a href="/profile.html" class="btn btn-secondary">취소</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script src="/edit-profile.js"></script>
+</body>
+</html>
