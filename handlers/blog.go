@@ -27,10 +27,10 @@ type UpdatePostRequest struct {
 	Content string `json:"content"`
 }
 
-// GetPosts returns all posts
+// GetPosts returns all posts (author info fetched separately by frontend)
 func GetPosts(c fiber.Ctx) error {
 	var posts []models.Post
-	result := database.DB.Preload("Author").Order("created_at desc").Find(&posts)
+	result := database.DB.Order("created_at desc").Find(&posts)
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch posts",
@@ -40,12 +40,12 @@ func GetPosts(c fiber.Ctx) error {
 	return c.JSON(posts)
 }
 
-// GetPost returns a single post by ID
+// GetPost returns a single post by ID (author info fetched separately by frontend)
 func GetPost(c fiber.Ctx) error {
 	id := c.Params("id")
 
 	var post models.Post
-	result := database.DB.Preload("Author").First(&post, id)
+	result := database.DB.First(&post, id)
 	if result.Error != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Post not found",
@@ -57,7 +57,7 @@ func GetPost(c fiber.Ctx) error {
 
 // CreatePost creates a new post
 func CreatePost(c fiber.Ctx) error {
-	user, err := middleware.GetCurrentUser(c)
+	claims, err := middleware.GetCurrentUserClaims(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
@@ -78,9 +78,11 @@ func CreatePost(c fiber.Ctx) error {
 	}
 
 	post := models.Post{
-		Title:    req.Title,
-		Content:  req.Content,
-		AuthorID: user.ID,
+		Title:          req.Title,
+		Content:        req.Content,
+		AuthorID:       claims.Sub,
+		AuthorUsername: middleware.GetUsername(claims),
+		AuthorAvatar:   claims.Picture,
 	}
 
 	if err := database.DB.Create(&post).Error; err != nil {
@@ -89,15 +91,12 @@ func CreatePost(c fiber.Ctx) error {
 		})
 	}
 
-	// Reload with author
-	database.DB.Preload("Author").First(&post, post.ID)
-
 	return c.Status(fiber.StatusCreated).JSON(post)
 }
 
 // UpdatePost updates an existing post
 func UpdatePost(c fiber.Ctx) error {
-	user, err := middleware.GetCurrentUser(c)
+	claims, err := middleware.GetCurrentUserClaims(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
@@ -121,7 +120,8 @@ func UpdatePost(c fiber.Ctx) error {
 	}
 
 	// Check permission: only admin or post author can update
-	if user.Role != "admin" && post.AuthorID != user.ID {
+	userRole := middleware.GetUserRole(claims)
+	if userRole != "admin" && post.AuthorID != claims.Sub {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Forbidden: You can only update your own posts",
 		})
@@ -147,15 +147,12 @@ func UpdatePost(c fiber.Ctx) error {
 		})
 	}
 
-	// Reload with author
-	database.DB.Preload("Author").First(&post, post.ID)
-
 	return c.JSON(post)
 }
 
 // DeletePost deletes a post
 func DeletePost(c fiber.Ctx) error {
-	user, err := middleware.GetCurrentUser(c)
+	claims, err := middleware.GetCurrentUserClaims(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
@@ -179,7 +176,8 @@ func DeletePost(c fiber.Ctx) error {
 	}
 
 	// Check permission: only admin or post author can delete
-	if user.Role != "admin" && post.AuthorID != user.ID {
+	userRole := middleware.GetUserRole(claims)
+	if userRole != "admin" && post.AuthorID != claims.Sub {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Forbidden: You can only delete your own posts",
 		})
@@ -196,16 +194,68 @@ func DeletePost(c fiber.Ctx) error {
 	})
 }
 
-// GetCurrentUserInfo returns the current user information
+// GetCurrentUserInfo returns the current user information from Logto
 func GetCurrentUserInfo(c fiber.Ctx) error {
-	user, err := middleware.GetCurrentUser(c)
+	claims, err := middleware.GetCurrentUserClaims(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
 		})
 	}
 
-	return c.JSON(user)
+	// Extract intro from custom_data
+	intro := ""
+	if claims.CustomData != nil {
+		if customIntro, ok := claims.CustomData["intro"].(string); ok {
+			intro = customIntro
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"ID":       claims.Sub,
+		"Email":    claims.Email,
+		"Username": middleware.GetUsername(claims),
+		"Avatar":   claims.Picture,
+		"Intro":    intro,
+		"Role":     middleware.GetUserRole(claims),
+	})
+}
+
+// GetUserProfile returns public profile information by finding a recent post or comment by the user
+func GetUserProfile(c fiber.Ctx) error {
+	userID := c.Params("id")
+	if userID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "User ID is required",
+		})
+	}
+
+	// Try to find user info from their most recent post
+	var post models.Post
+	if err := database.DB.Where("author_id = ?", userID).Order("created_at desc").First(&post).Error; err == nil {
+		return c.JSON(fiber.Map{
+			"ID":       userID,
+			"Username": post.AuthorUsername,
+			"Avatar":   post.AuthorAvatar,
+			"Role":     "user", // We don't store role in denormalized data
+		})
+	}
+
+	// If no post found, try to find from their most recent comment
+	var comment models.Comment
+	if err := database.DB.Where("author_id = ?", userID).Order("created_at desc").First(&comment).Error; err == nil {
+		return c.JSON(fiber.Map{
+			"ID":       userID,
+			"Username": comment.AuthorUsername,
+			"Avatar":   comment.AuthorAvatar,
+			"Role":     "user",
+		})
+	}
+
+	// User has no posts or comments
+	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+		"error": "User not found or has no activity",
+	})
 }
 
 type UpdateProfileRequest struct {
@@ -216,7 +266,7 @@ type UpdateProfileRequest struct {
 
 // UpdateProfile updates user profile via Logto Account API
 func UpdateProfile(c fiber.Ctx) error {
-	user, err := middleware.GetCurrentUser(c)
+	claims, err := middleware.GetCurrentUserClaims(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
@@ -261,7 +311,7 @@ func UpdateProfile(c fiber.Ctx) error {
 		})
 	}
 
-	log.Printf("Updating profile for user %s with payload: %s", user.ID, string(payloadBytes))
+	log.Printf("Updating profile for user %s with payload: %s", claims.Sub, string(payloadBytes))
 
 	// Call Logto Account API
 	endpoint := os.Getenv("LOGTO_ENDPOINT")
@@ -296,21 +346,9 @@ func UpdateProfile(c fiber.Ctx) error {
 		})
 	}
 
-	// Update local database
-	if req.Username != nil {
-		user.Username = *req.Username
-	}
-	if req.Avatar != nil {
-		user.Avatar = *req.Avatar
-	}
-	if req.Intro != nil {
-		user.Intro = *req.Intro
-	}
-
-	if err := database.DB.Save(&user).Error; err != nil {
-		log.Printf("Failed to update local user: %v", err)
-		// Don't fail the request, Logto is source of truth
-	}
-
-	return c.JSON(user)
+	// No local DB update needed - Logto is the source of truth
+	// Return success - client should re-fetch user info if needed
+	return c.JSON(fiber.Map{
+		"message": "Profile updated successfully",
+	})
 }

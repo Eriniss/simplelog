@@ -17,8 +17,8 @@ func Init() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// Auto migrate
-	err = DB.AutoMigrate(&models.User{}, &models.Post{})
+	// Auto migrate (User table removed - all user data from Logto)
+	err = DB.AutoMigrate(&models.Post{}, &models.Comment{})
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}

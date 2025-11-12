@@ -7,8 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"simplelog/database"
-	"simplelog/models"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -44,87 +42,10 @@ func RequireAuth(c fiber.Ctx) error {
 		})
 	}
 
-	log.Printf("Token verified successfully for user: %s (roles: %v, custom_data: %v)", userInfo.Email, userInfo.Roles, userInfo.CustomData)
+	log.Printf("Token verified successfully for user: %s (sub: %s)", userInfo.Email, userInfo.Sub)
 
-	// Determine user role from Logto roles or custom_data
-	role := "user" // default
-
-	// Method 1: Check Roles array
-	for _, r := range userInfo.Roles {
-		if r == "admin" {
-			role = "admin"
-			break
-		}
-	}
-
-	// Method 2: Check custom_data if roles is empty
-	if role == "user" && userInfo.CustomData != nil {
-		if customRole, ok := userInfo.CustomData["role"].(string); ok {
-			if customRole == "admin" {
-				role = "admin"
-			}
-		}
-	}
-
-	// Get intro from custom_data and avatar from picture field
-	intro := ""
-	avatar := userInfo.Picture // Avatar comes from standard OIDC 'picture' field
-
-	log.Printf("Picture field: %s", avatar)
-
-	if userInfo.CustomData != nil {
-		log.Printf("CustomData contents: %+v", userInfo.CustomData)
-		if customIntro, ok := userInfo.CustomData["intro"].(string); ok {
-			intro = customIntro
-			log.Printf("Found intro: %s", intro)
-		}
-	}
-
-	// Get or create user
-	var user models.User
-	result := database.DB.Where("id = ?", userInfo.Sub).First(&user)
-	if result.Error != nil {
-		// Create new user
-		log.Printf("Creating new user: %s with role: %s", userInfo.Email, role)
-		user = models.User{
-			ID:       userInfo.Sub,
-			Email:    userInfo.Email,
-			Username: userInfo.Username,
-			Intro:    intro,
-			Avatar:   avatar,
-			Role:     role,
-		}
-		database.DB.Create(&user)
-	} else {
-		// Update existing user's username, role, intro, and avatar if changed
-		updated := false
-		if user.Username != userInfo.Username {
-			log.Printf("Updating user username from %s to %s", user.Username, userInfo.Username)
-			user.Username = userInfo.Username
-			updated = true
-		}
-		if user.Role != role {
-			log.Printf("Updating user role from %s to %s", user.Role, role)
-			user.Role = role
-			updated = true
-		}
-		if user.Intro != intro {
-			log.Printf("Updating user intro")
-			user.Intro = intro
-			updated = true
-		}
-		if user.Avatar != avatar {
-			log.Printf("Updating user avatar")
-			user.Avatar = avatar
-			updated = true
-		}
-		if updated {
-			database.DB.Save(&user)
-		}
-	}
-
-	// Store user in context
-	c.Locals("user", user)
+	// Store Logto claims directly in context (no DB user creation)
+	c.Locals("userClaims", userInfo)
 	return c.Next()
 }
 
@@ -170,11 +91,51 @@ func verifyToken(token string) (*LogtoClaims, error) {
 	return &claims, nil
 }
 
-// GetCurrentUser retrieves the current user from context
-func GetCurrentUser(c fiber.Ctx) (*models.User, error) {
-	user, ok := c.Locals("user").(models.User)
+// GetCurrentUserClaims retrieves the current user's Logto claims from context
+func GetCurrentUserClaims(c fiber.Ctx) (*LogtoClaims, error) {
+	claims, ok := c.Locals("userClaims").(*LogtoClaims)
 	if !ok {
-		return nil, fmt.Errorf("user not found in context")
+		return nil, fmt.Errorf("user claims not found in context")
 	}
-	return &user, nil
+	return claims, nil
+}
+
+// GetUserRole determines the user's role from Logto claims
+func GetUserRole(claims *LogtoClaims) string {
+	// Method 1: Check Roles array
+	for _, r := range claims.Roles {
+		if r == "admin" {
+			return "admin"
+		}
+	}
+
+	// Method 2: Check custom_data if roles is empty
+	if claims.CustomData != nil {
+		if customRole, ok := claims.CustomData["role"].(string); ok {
+			if customRole == "admin" {
+				return "admin"
+			}
+		}
+	}
+
+	return "user" // default
+}
+
+// GetUsername extracts username from Logto claims, falling back to email if not set
+func GetUsername(claims *LogtoClaims) string {
+	if claims.Username != "" {
+		return claims.Username
+	}
+
+	// Extract username from email (part before @)
+	if claims.Email != "" {
+		for i, ch := range claims.Email {
+			if ch == '@' {
+				return claims.Email[:i]
+			}
+		}
+		return claims.Email
+	}
+
+	return "익명" // anonymous fallback
 }

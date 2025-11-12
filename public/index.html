@@ -92,7 +92,28 @@
                     </div>
                     <button id="back-to-list-btn" class="btn btn-secondary">목록으로</button>
                 </div>
+
+                <!-- Comments Section -->
+                <div class="comments-section">
+                    <h3 class="comments-title">댓글</h3>
+
+                    <!-- Comments List -->
+                    <div id="comments-container"></div>
+
+                    <!-- Comment Form -->
+                    <div class="comment-form-box">
+                        <input type="text" id="comment-input" class="comment-input" placeholder="댓글을 남겨보세요">
+                        <button id="submit-comment-btn" class="comment-submit-btn" type="button">등록</button>
+                        <button id="cancel-comment-btn" type="button" style="display: none;">취소</button>
+                    </div>
+                </div>
             </article>
+        </div>
+
+        <!-- User Profile View -->
+        <div id="profile-view-container" style="display: none;">
+            <div id="profile-view-content"></div>
+            <button id="back-from-profile-btn" class="btn btn-secondary" onclick="showListView()">목록으로</button>
         </div>
 
         <!-- Posts List -->

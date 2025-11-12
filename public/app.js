@@ -1,7 +1,8 @@
 // Global state
 let currentUser = null;
-let currentView = 'list'; // 'list', 'single', 'form'
+let currentView = 'list'; // 'list', 'single', 'form', 'profile'
 let editingPostId = null;
+let viewingUserId = null;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -134,16 +135,35 @@ function renderPosts(posts) {
         return;
     }
 
-    container.innerHTML = posts.map(post => `
-        <div class="post-card" onclick="showPost(${post.ID})">
-            <h3>${escapeHtml(post.Title)}</h3>
-            <div class="post-meta">
-                <span>${post.Author?.Username || '익명'}</span> •
-                <span>${formatDate(post.CreatedAt)}</span>
+    container.innerHTML = posts.map(post => {
+        const avatarUrl = post.AuthorAvatar || '';
+        const hasAvatar = avatarUrl && avatarUrl.trim() !== '';
+
+        return `
+            <div class="post-card" data-post-id="${post.ID}">
+                <h3 class="post-card-title">${escapeHtml(post.Title)}</h3>
+                <div class="post-meta">
+                    <div class="post-card-author">
+                        ${hasAvatar ? `<img src="${escapeHtml(avatarUrl)}" alt="프로필" class="post-card-avatar">` : ''}
+                        <span class="post-card-author-name">${escapeHtml(post.AuthorUsername || '익명')}</span>
+                    </div>
+                    <span>•</span>
+                    <span class="post-card-date">${formatDate(post.CreatedAt)}</span>
+                </div>
+                <div class="post-preview">${getPreview(post.Content)}</div>
             </div>
-            <div class="post-preview">${getPreview(post.Content)}</div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
+
+    // Attach click handlers
+    container.querySelectorAll('.post-card').forEach(card => {
+        const postId = card.dataset.postId;
+
+        // Click on card shows post
+        card.addEventListener('click', () => {
+            showPost(parseInt(postId));
+        });
+    });
 }
 
 async function showPost(postId) {
@@ -159,6 +179,9 @@ async function showPost(postId) {
         const post = await response.json();
         renderSinglePost(post);
         showSingleView();
+
+        // Load comments for this post
+        await loadComments(postId);
     } catch (error) {
         console.error('Error loading post:', error);
         alert('글을 불러오는데 실패했습니다.');
@@ -167,13 +190,29 @@ async function showPost(postId) {
 
 function renderSinglePost(post) {
     console.log('Post data:', post);
-    console.log('Author data:', post.Author);
     document.getElementById('detail-title').textContent = post.Title;
     document.getElementById('detail-title').dataset.postId = post.ID;
-    document.getElementById('detail-author').textContent = post.Author?.Username || '익명';
+
+    // Render author with avatar
+    const authorElement = document.getElementById('detail-author');
+    const avatarUrl = post.AuthorAvatar || '';
+    const hasAvatar = avatarUrl && avatarUrl.trim() !== '';
+    const authorId = post.AuthorID || '';
+
+    authorElement.innerHTML = `
+        ${hasAvatar ? `<img src="${escapeHtml(avatarUrl)}" alt="프로필" class="post-author-avatar clickable-profile" data-user-id="${escapeHtml(authorId)}">` : ''}
+        <span class="post-author-name clickable-profile" data-user-id="${escapeHtml(authorId)}">${escapeHtml(post.AuthorUsername || '익명')}</span>
+    `;
+
+    // Attach click handlers to profile elements
+    authorElement.querySelectorAll('.clickable-profile').forEach(el => {
+        el.addEventListener('click', () => {
+            showUserProfile(el.dataset.userId);
+        });
+    });
 
     // Format date with edit info if post was modified
-    let dateText = `작성: ${formatDate(post.CreatedAt)}`;
+    let dateText = formatDate(post.CreatedAt);
     if (post.UpdatedAt && post.UpdatedAt !== post.CreatedAt) {
         const createdTime = new Date(post.CreatedAt).getTime();
         const updatedTime = new Date(post.UpdatedAt).getTime();
@@ -182,7 +221,7 @@ function renderSinglePost(post) {
             dateText += ` • 수정: ${formatDate(post.UpdatedAt)}`;
         }
     }
-    document.getElementById('detail-date').textContent = dateText;
+    document.getElementById('detail-date').innerHTML = `<span>•</span> <span>${dateText}</span>`;
 
     document.getElementById('detail-content').innerHTML = renderMarkdown(post.Content);
 
@@ -307,12 +346,53 @@ async function handleDeletePost() {
     }
 }
 
+// User profile viewing
+async function showUserProfile(userId) {
+    if (!userId) return;
+
+    try {
+        const response = await fetch(`/api/users/${userId}`, {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to load user profile');
+        }
+
+        const user = await response.json();
+        renderUserProfile(user);
+        showProfileView();
+    } catch (error) {
+        console.error('Error loading user profile:', error);
+        alert('사용자 프로필을 불러오는데 실패했습니다.');
+    }
+}
+
+function renderUserProfile(user) {
+    const container = document.getElementById('profile-view-content');
+    const avatarUrl = user.Avatar || '';
+    const hasAvatar = avatarUrl && avatarUrl.trim() !== '';
+
+    container.innerHTML = `
+        <div class="profile-view-header">
+            ${hasAvatar ? `<img src="${escapeHtml(avatarUrl)}" alt="프로필" class="profile-view-avatar">` : '<div class="profile-view-avatar-placeholder">No Avatar</div>'}
+            <div class="profile-view-info">
+                <h2>${escapeHtml(user.Username || '익명')}</h2>
+                <p class="profile-view-email">${escapeHtml(user.Email || '')}</p>
+                ${user.Intro ? `<p class="profile-view-intro">${escapeHtml(user.Intro)}</p>` : ''}
+                <span class="profile-view-role">${escapeHtml(user.Role || 'user')}</span>
+            </div>
+        </div>
+    `;
+}
+
 // View management
 function showListView() {
     currentView = 'list';
     document.getElementById('posts-list').style.display = 'block';
     document.getElementById('single-post-view').style.display = 'none';
     document.getElementById('post-form-container').style.display = 'none';
+    document.getElementById('profile-view-container').style.display = 'none';
     if (currentUser) {
         document.getElementById('new-post-btn-container').style.display = 'block';
     }
@@ -323,6 +403,7 @@ function showSingleView() {
     document.getElementById('posts-list').style.display = 'none';
     document.getElementById('single-post-view').style.display = 'block';
     document.getElementById('post-form-container').style.display = 'none';
+    document.getElementById('profile-view-container').style.display = 'none';
     document.getElementById('new-post-btn-container').style.display = 'none';
 }
 
@@ -331,6 +412,16 @@ function showFormView() {
     document.getElementById('posts-list').style.display = 'none';
     document.getElementById('single-post-view').style.display = 'none';
     document.getElementById('post-form-container').style.display = 'block';
+    document.getElementById('profile-view-container').style.display = 'none';
+    document.getElementById('new-post-btn-container').style.display = 'none';
+}
+
+function showProfileView() {
+    currentView = 'profile';
+    document.getElementById('posts-list').style.display = 'none';
+    document.getElementById('single-post-view').style.display = 'none';
+    document.getElementById('post-form-container').style.display = 'none';
+    document.getElementById('profile-view-container').style.display = 'block';
     document.getElementById('new-post-btn-container').style.display = 'none';
 }
 
@@ -354,7 +445,7 @@ function formatDate(dateString) {
     });
 }
 
-function getPreview(content, maxLength = 150) {
+function getPreview(content, maxLength = 50) {
     const text = content.replace(/[#*\-]/g, '').trim();
     return text.length > maxLength
         ? text.substring(0, maxLength) + '...'
@@ -380,4 +471,305 @@ function renderMarkdown(content) {
     html = html.replace(/\n/g, '<br>');
 
     return html;
+}
+
+// Comment functionality
+let currentPostId = null;
+let editingCommentId = null;
+let replyToCommentId = null;
+
+async function loadComments(postId) {
+    currentPostId = postId;
+    console.log('Loading comments for post:', postId);
+
+    try {
+        const response = await fetch(`/api/posts/${postId}/comments`, {
+            credentials: 'include'
+        });
+
+        console.log('Comments response status:', response.status);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Failed to load comments:', errorText);
+            throw new Error('Failed to load comments');
+        }
+
+        const comments = await response.json();
+        console.log('Comments loaded:', comments);
+        renderComments(comments);
+        setupCommentFormListeners();
+    } catch (error) {
+        console.error('Error loading comments:', error);
+        document.getElementById('comments-container').innerHTML =
+            '<div class="empty-state">댓글을 불러오는데 실패했습니다.</div>';
+    }
+}
+
+function countAllComments(comments) {
+    let count = comments.length;
+    for (const comment of comments) {
+        if (comment.Replies && comment.Replies.length > 0) {
+            count += countAllComments(comment.Replies);
+        }
+    }
+    return count;
+}
+
+function renderComments(comments) {
+    const container = document.getElementById('comments-container');
+    const titleElement = document.querySelector('.comments-title');
+
+    const totalComments = countAllComments(comments);
+    titleElement.textContent = `댓글 (${totalComments})`;
+
+    if (comments.length === 0) {
+        container.innerHTML = '<div class="empty-state">아직 댓글이 없습니다. 첫 번째 댓글을 작성해보세요!</div>';
+        titleElement.textContent = '댓글 (0)';
+        return;
+    }
+
+    container.innerHTML = comments.map(comment => renderComment(comment)).join('');
+    attachCommentEventListeners();
+}
+
+function renderComment(comment, isReply = false) {
+    const canEdit = currentUser && (currentUser.Role === 'admin' || currentUser.ID === comment.AuthorID);
+    const avatarUrl = comment.AuthorAvatar || '';
+    const hasAvatar = avatarUrl && avatarUrl.trim() !== '';
+    const authorId = comment.AuthorID || '';
+
+    return `
+        <div class="comment" data-comment-id="${comment.ID}">
+            <div class="comment-header">
+                <div class="comment-author">
+                    ${hasAvatar ? `<img src="${escapeHtml(avatarUrl)}" alt="프로필" class="comment-avatar clickable-profile" data-user-id="${escapeHtml(authorId)}">` : ''}
+                    <span class="comment-author-name clickable-profile" data-user-id="${escapeHtml(authorId)}">${escapeHtml(comment.AuthorUsername || '익명')}</span>
+                    <span class="comment-date">${formatDate(comment.CreatedAt)}</span>
+                </div>
+                ${canEdit ? `
+                <div class="comment-actions">
+                    <button class="btn btn-secondary edit-comment-btn" data-comment-id="${comment.ID}">수정</button>
+                    <button class="btn btn-danger delete-comment-btn" data-comment-id="${comment.ID}">삭제</button>
+                </div>
+                ` : ''}
+            </div>
+            <div class="comment-content" data-comment-id="${comment.ID}">${escapeHtml(comment.Content)}</div>
+            ${!isReply ? `<button class="comment-reply-btn" data-comment-id="${comment.ID}">답글</button>` : ''}
+            ${comment.Replies && comment.Replies.length > 0 ? `
+                <div class="comment-replies">
+                    ${comment.Replies.map(reply => renderComment(reply, true)).join('')}
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+let commentFormListenersAttached = false;
+
+function setupCommentFormListeners() {
+    const submitBtn = document.getElementById('submit-comment-btn');
+    const cancelBtn = document.getElementById('cancel-comment-btn');
+    const commentInput = document.getElementById('comment-input');
+
+    console.log('Setting up comment form listeners');
+    console.log('Submit button:', submitBtn);
+    console.log('Comment input:', commentInput);
+    console.log('Already attached?', commentFormListenersAttached);
+
+    if (!submitBtn || !commentInput) {
+        console.error('Comment form elements not found!');
+        return;
+    }
+
+    // Only attach listeners once
+    if (commentFormListenersAttached) {
+        console.log('Comment form listeners already attached, skipping');
+        return;
+    }
+
+    console.log('Attaching comment form listeners...');
+
+    submitBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        console.log('Submit button clicked!');
+        const content = commentInput.value.trim();
+        console.log('Comment content:', content);
+
+        if (!content) {
+            alert('댓글 내용을 입력해주세요.');
+            return;
+        }
+
+        if (editingCommentId) {
+            console.log('Updating comment:', editingCommentId);
+            await updateComment(editingCommentId, content);
+        } else {
+            console.log('Creating new comment, reply to:', replyToCommentId);
+            await createComment(content, replyToCommentId);
+        }
+
+        commentInput.value = '';
+        cancelCommentForm();
+    });
+
+    cancelBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        console.log('Cancel button clicked!');
+        commentInput.value = '';
+        cancelCommentForm();
+    });
+
+    // Also handle Enter key on input
+    commentInput.addEventListener('keypress', async (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            console.log('Enter key pressed on comment input');
+            submitBtn.click();
+        }
+    });
+
+    commentFormListenersAttached = true;
+    console.log('Comment form listeners attached successfully');
+}
+
+function cancelCommentForm() {
+    editingCommentId = null;
+    replyToCommentId = null;
+    document.getElementById('submit-comment-btn').textContent = '댓글 작성';
+    document.getElementById('cancel-comment-btn').style.display = 'none';
+}
+
+function attachCommentEventListeners() {
+    // Profile click handlers
+    document.querySelectorAll('.comment .clickable-profile').forEach(el => {
+        el.addEventListener('click', () => {
+            showUserProfile(el.dataset.userId);
+        });
+    });
+
+    // Reply buttons
+    document.querySelectorAll('.comment-reply-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const commentId = parseInt(btn.dataset.commentId);
+            replyToCommentId = commentId;
+            editingCommentId = null;
+
+            const commentInput = document.getElementById('comment-input');
+            commentInput.focus();
+            commentInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            document.getElementById('submit-comment-btn').textContent = '작성';
+            document.getElementById('cancel-comment-btn').style.display = 'inline-block';
+        });
+    });
+
+    // Edit buttons
+    document.querySelectorAll('.edit-comment-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const commentId = parseInt(btn.dataset.commentId);
+            const contentEl = document.querySelector(`.comment-content[data-comment-id="${commentId}"]`);
+            const currentContent = contentEl.textContent;
+
+            editingCommentId = commentId;
+            replyToCommentId = null;
+
+            const commentInput = document.getElementById('comment-input');
+            commentInput.value = currentContent;
+            commentInput.focus();
+            commentInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            document.getElementById('submit-comment-btn').textContent = '댓글 수정';
+            document.getElementById('cancel-comment-btn').style.display = 'inline-block';
+        });
+    });
+
+    // Delete buttons
+    document.querySelectorAll('.delete-comment-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (!confirm('정말 이 댓글을 삭제하시겠습니까?')) {
+                return;
+            }
+
+            const commentId = parseInt(btn.dataset.commentId);
+            await deleteComment(commentId);
+        });
+    });
+}
+
+async function createComment(content, parentId = null) {
+    try {
+        const payload = { content };
+        if (parentId) {
+            payload.parent_id = parentId;
+        }
+
+        console.log('Creating comment with payload:', payload);
+        console.log('Current post ID:', currentPostId);
+
+        const response = await fetch(`/api/posts/${currentPostId}/comments`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+        });
+
+        console.log('Create comment response status:', response.status);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Failed to create comment:', errorText);
+            throw new Error('Failed to create comment');
+        }
+
+        const result = await response.json();
+        console.log('Comment created:', result);
+
+        await loadComments(currentPostId);
+    } catch (error) {
+        console.error('Error creating comment:', error);
+        alert('댓글 작성에 실패했습니다.');
+    }
+}
+
+async function updateComment(commentId, content) {
+    try {
+        const response = await fetch(`/api/comments/${commentId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ content })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update comment');
+        }
+
+        await loadComments(currentPostId);
+    } catch (error) {
+        console.error('Error updating comment:', error);
+        alert('댓글 수정에 실패했습니다.');
+    }
+}
+
+async function deleteComment(commentId) {
+    try {
+        const response = await fetch(`/api/comments/${commentId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to delete comment');
+        }
+
+        await loadComments(currentPostId);
+    } catch (error) {
+        console.error('Error deleting comment:', error);
+        alert('댓글 삭제에 실패했습니다.');
+    }
 }

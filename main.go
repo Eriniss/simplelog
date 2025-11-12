@@ -57,6 +57,7 @@ func main() {
 
 	// User info
 	api.Get("/me", handlers.GetCurrentUserInfo)
+	api.Get("/users/:id", handlers.GetUserProfile)
 	api.Patch("/profile", handlers.UpdateProfile)
 
 	// Public read routes (authenticated users can read all posts)
@@ -69,6 +70,12 @@ func main() {
 	// Update/Delete routes (only owner or admin)
 	api.Put("/posts/:id", handlers.UpdatePost)
 	api.Delete("/posts/:id", handlers.DeletePost)
+
+	// Comment routes
+	api.Get("/posts/:id/comments", handlers.GetComments)
+	api.Post("/posts/:id/comments", handlers.CreateComment)
+	api.Put("/comments/:id", handlers.UpdateComment)
+	api.Delete("/comments/:id", handlers.DeleteComment)
 
 	// Start server
 	port := os.Getenv("PORT")

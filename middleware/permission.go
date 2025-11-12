@@ -6,14 +6,14 @@ import (
 
 // RequireAdmin checks if the current user is an admin
 func RequireAdmin(c fiber.Ctx) error {
-	user, err := GetCurrentUser(c)
+	claims, err := GetCurrentUserClaims(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
 		})
 	}
 
-	if user.Role != "admin" {
+	if GetUserRole(claims) != "admin" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Forbidden: Admin access required",
 		})
