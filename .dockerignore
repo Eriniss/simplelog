@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+*.md
+CLAUDE.md
+
+# Build artifacts
+simplelog
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Database
+*.db
+postgres_data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Frontend (handled by frontend Dockerfile)
+frontend/
+
+# Logs
+*.log
