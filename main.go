@@ -10,7 +10,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/logger"
-	"github.com/gofiber/fiber/v3/middleware/static"
 	"github.com/joho/godotenv"
 )
 
@@ -39,14 +38,11 @@ func main() {
 	// Middleware
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173"},
+		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:8080", "https://blog.polipixel.link"},
 		AllowCredentials: true,
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 	}))
-
-	// Serve React frontend static files
-	app.Use("/", static.New("./frontend/dist"))
 
 	// Auth routes (no auth required)
 	app.Get("/auth/login", handlers.HandleLogin)
@@ -78,11 +74,6 @@ func main() {
 	api.Post("/posts/:id/comments", handlers.CreateComment)
 	api.Put("/comments/:id", handlers.UpdateComment)
 	api.Delete("/comments/:id", handlers.DeleteComment)
-
-	// Fallback to index.html for client-side routing
-	app.Get("/*", func(c fiber.Ctx) error {
-		return c.SendFile("./frontend/dist/index.html")
-	})
 
 	// Start server
 	port := os.Getenv("PORT")

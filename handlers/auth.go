@@ -68,9 +68,14 @@ func HandleCallback(c fiber.Ctx) error {
 		SameSite: "Lax",
 	})
 
-	log.Println("Cookie set, redirecting to /")
+	// Redirect to frontend URL (different from backend in development)
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "/" // Fallback to same origin
+	}
 
-	return c.Redirect().To("/")
+	log.Printf("Cookie set, redirecting to %s", frontendURL)
+	return c.Redirect().To(frontendURL)
 }
 
 // HandleLogout logs out the user
