@@ -68,6 +68,12 @@ func RequireAuth(c fiber.Ctx) error {
 
 func verifyToken(token string) (*LogtoClaims, error) {
 	endpoint := os.Getenv("LOGTO_ENDPOINT")
+	// Use internal endpoint for server-to-server communication if available
+	internalEndpoint := os.Getenv("LOGTO_INTERNAL_ENDPOINT")
+	if internalEndpoint != "" {
+		endpoint = internalEndpoint
+	}
+
 	userInfoURL := endpoint + "oidc/me"
 
 	log.Printf("Verifying token with URL: %s", userInfoURL)
