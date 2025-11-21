@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -21,14 +22,32 @@ type LogtoClaims struct {
 	CustomData map[string]interface{} `json:"custom_data"`
 }
 
+// handleUnauthorized checks request type and responds accordingly
+// - For API calls (JSON): return 401 JSON
+// - For browser navigation (HTML): redirect to login
+func handleUnauthorized(c fiber.Ctx) error {
+	accept := c.Get("Accept")
+
+	// Check if this is a browser navigation request (wants HTML)
+	// Browser navigation typically has Accept: text/html
+	if strings.Contains(accept, "text/html") {
+		log.Println("Browser request detected, redirecting to /auth/login")
+		return c.Redirect().To("/auth/login")
+	}
+
+	// For API calls (JSON), return 401 so frontend can handle redirect
+	log.Println("API request detected, returning 401 JSON")
+	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+		"error": "Unauthorized",
+	})
+}
+
 // RequireAuth checks if user is authenticated
 func RequireAuth(c fiber.Ctx) error {
 	sessionToken := c.Cookies("session_token")
 	if sessionToken == "" {
 		log.Println("No session token found in cookie")
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized",
-		})
+		return handleUnauthorized(c)
 	}
 
 	log.Printf("Found session token: %s", sessionToken[:10]+"...")
@@ -37,9 +56,7 @@ func RequireAuth(c fiber.Ctx) error {
 	userInfo, err := verifyToken(sessionToken)
 	if err != nil {
 		log.Printf("Token verification failed: %v", err)
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Invalid token",
-		})
+		return handleUnauthorized(c)
 	}
 
 	log.Printf("Token verified successfully for user: %s (sub: %s)", userInfo.Email, userInfo.Sub)
