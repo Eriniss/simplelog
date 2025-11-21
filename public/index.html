@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimpleLog - 간단한 블로그</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1 class="logo"><a href="/" style="color: inherit; text-decoration: none;"><img src="/image.png" alt="SimpleLog" style="height: 32px; vertical-align: middle;"></a></h1>
+            <nav>
+                <div id="user-info" class="user-info" style="display: none;">
+                    <div class="user-menu-trigger">
+                        <img id="user-avatar" class="user-avatar" src="" alt="프로필" style="display: none;">
+                        <span id="user-name"></span>
+                        <span id="user-role" class="badge"></span>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M4 6l4 4 4-4H4z"/>
+                        </svg>
+                    </div>
+                    <div id="user-dropdown" class="user-dropdown" style="display: none;">
+                        <a href="/profile.html" class="dropdown-item">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm2 2H6a5 5 0 00-5 5v1h12v-1a5 5 0 00-5-5z"/>
+                            </svg>
+                            프로필
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <button id="logout-btn" class="dropdown-item logout-item">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M6 13V3H4v10h2zm6-6l-4 4V7l4 4z"/>
+                            </svg>
+                            로그아웃
+                        </button>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Post Form -->
+        <div id="post-form-container" style="display: none;">
+            <div class="post-form">
+                <h2 id="form-title">새 글 작성</h2>
+                <form id="post-form">
+                    <input type="hidden" id="post-id">
+                    <div class="form-group">
+                        <label for="post-title">제목</label>
+                        <input type="text" id="post-title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="post-content">내용</label>
+                        <textarea id="post-content" rows="10" required></textarea>
+                        <div class="editor-help">
+                            <small>
+                                지원: <strong>**볼드**</strong>,
+                                # 큰 제목, ## 중간 제목, ### 작은 제목,
+                                - 리스트 항목
+                            </small>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">저장</button>
+                        <button type="button" id="cancel-btn" class="btn btn-secondary">취소</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- New Post Button -->
+        <div id="new-post-btn-container" style="display: none;">
+            <button id="new-post-btn" class="btn btn-primary">새 글 작성</button>
+        </div>
+
+        <!-- Single Post View -->
+        <div id="single-post-view" style="display: none;">
+            <article class="post-detail">
+                <h1 id="detail-title"></h1>
+                <div class="post-meta">
+                    <span id="detail-author"></span>
+                    <span id="detail-date"></span>
+                </div>
+                <div id="detail-content" class="post-content"></div>
+                <div class="post-actions-container">
+                    <div id="detail-actions" class="post-actions" style="display: none;">
+                        <button id="edit-post-btn" class="btn btn-secondary">수정</button>
+                        <button id="delete-post-btn" class="btn btn-danger">삭제</button>
+                    </div>
+                    <button id="back-to-list-btn" class="btn btn-secondary">목록으로</button>
+                </div>
+
+                <!-- Comments Section -->
+                <div class="comments-section">
+                    <h3 class="comments-title">댓글</h3>
+
+                    <!-- Comments List -->
+                    <div id="comments-container"></div>
+
+                    <!-- Comment Form -->
+                    <div class="comment-form-box">
+                        <input type="text" id="comment-input" class="comment-input" placeholder="댓글을 남겨보세요">
+                        <button id="submit-comment-btn" class="comment-submit-btn" type="button">등록</button>
+                        <button id="cancel-comment-btn" type="button" style="display: none;">취소</button>
+                    </div>
+                </div>
+            </article>
+        </div>
+
+        <!-- User Profile View -->
+        <div id="profile-view-container" style="display: none;">
+            <div id="profile-view-content"></div>
+            <button id="back-from-profile-btn" class="btn btn-secondary" onclick="showListView()">목록으로</button>
+        </div>
+
+        <!-- Posts List -->
+        <div id="posts-list">
+            <h2>최근 글</h2>
+            <div id="posts-container"></div>
+        </div>
+    </main>
+
+    <script src="/app.js"></script>
+</body>
+</html>

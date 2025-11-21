@@ -1,9 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Post, User } from '../types';
-import { formatDate } from '../utils/markdown';
+import { renderMarkdown, formatDate } from '../utils/markdown';
 import { postAPI } from '../api/client';
-import { CustomReactMarkdown } from './MarkdownEditor';
 
 interface PostDetailProps {
   post: Post;
@@ -68,9 +67,10 @@ export const PostDetail: React.FC<PostDetailProps> = ({ post, user, onDeleted })
           <span>•</span> <span>{dateText}</span>
         </span>
       </div>
-      <div className="post-content">
-        <CustomReactMarkdown contents={post.Content} />
-      </div>
+      <div
+        className="post-content"
+        dangerouslySetInnerHTML={{ __html: renderMarkdown(post.Content) }}
+      />
       <div className="post-actions-container">
         {canEdit && (
           <div className="post-actions">

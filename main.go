@@ -10,7 +10,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/logger"
-	"github.com/gofiber/fiber/v3/middleware/static"
 	"github.com/joho/godotenv"
 )
 
@@ -45,9 +44,6 @@ func main() {
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 	}))
 
-	// Serve React frontend static files
-	app.Use("/", static.New("./frontend/dist"))
-
 	// Auth routes (no auth required)
 	app.Get("/auth/login", handlers.HandleLogin)
 	app.Get("/oidc/callback", handlers.HandleCallback)
@@ -78,11 +74,6 @@ func main() {
 	api.Post("/posts/:id/comments", handlers.CreateComment)
 	api.Put("/comments/:id", handlers.UpdateComment)
 	api.Delete("/comments/:id", handlers.DeleteComment)
-
-	// Fallback to index.html for client-side routing
-	app.Get("/*", func(c fiber.Ctx) error {
-		return c.SendFile("./frontend/dist/index.html")
-	})
 
 	// Start server
 	port := os.Getenv("PORT")

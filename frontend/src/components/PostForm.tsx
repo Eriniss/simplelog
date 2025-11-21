@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { postAPI } from '../api/client';
 import type { Post } from '../types';
-import { MarkdownEditor } from './MarkdownEditor';
 
 interface PostFormProps {
   post?: Post;
@@ -55,13 +54,23 @@ export const PostForm: React.FC<PostFormProps> = ({ post, onSaved }) => {
             required
           />
         </div>
-
-        <MarkdownEditor
-          value={content}
-          onChange={setContent}
-          placeholder="마크다운을 입력하세요..."
-        />
-
+        <div className="form-group">
+          <label htmlFor="post-content">내용</label>
+          <textarea
+            id="post-content"
+            rows={10}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            required
+          />
+          <div className="editor-help">
+            <small>
+              지원: <strong>**볼드**</strong>,
+              # 큰 제목, ## 중간 제목, ### 작은 제목,
+              - 리스트 항목
+            </small>
+          </div>
+        </div>
         <div className="form-actions">
           <button type="submit" className="btn btn-primary" disabled={submitting}>
             {submitting ? '저장 중...' : '저장'}
