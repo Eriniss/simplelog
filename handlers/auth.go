@@ -27,7 +27,6 @@ func HandleLogin(c fiber.Ctx) error {
 	endpoint := os.Getenv("LOGTO_ENDPOINT")
 	appID := os.Getenv("LOGTO_APP_ID")
 	redirectURI := os.Getenv("LOGTO_REDIRECT_URI")
-	log.Printf("Initiating login with redirect URI: %s", redirectURI)
 
 	authURL := fmt.Sprintf("%soidc/auth?client_id=%s&redirect_uri=%s&response_type=code&scope=openid+profile+email+roles+custom_data",
 		endpoint, appID, url.QueryEscape(redirectURI))
@@ -64,7 +63,7 @@ func HandleCallback(c fiber.Ctx) error {
 		Value:    token.AccessToken,
 		Expires:  time.Now().Add(time.Duration(token.ExpiresIn) * time.Second),
 		HTTPOnly: true,
-		Secure:   true, // Always true for HTTPS
+		Secure:   false, // Set to true in production with HTTPS
 		SameSite: "Lax",
 	})
 
