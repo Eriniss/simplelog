@@ -101,14 +101,6 @@ func HandleLogout(c fiber.Ctx) error {
 
 func exchangeCodeForToken(code string) (*TokenResponse, error) {
 	endpoint := os.Getenv("LOGTO_ENDPOINT")
-	// Use internal endpoint for server-to-server communication if available
-	// This avoids issues when backend can't reach its own public IP
-	internalEndpoint := os.Getenv("LOGTO_INTERNAL_ENDPOINT")
-	if internalEndpoint != "" {
-		log.Printf("Using internal Logto endpoint: %s", internalEndpoint)
-		endpoint = internalEndpoint
-	}
-
 	appID := os.Getenv("LOGTO_APP_ID")
 	appSecret := os.Getenv("LOGTO_APP_SECRET")
 	redirectURI := os.Getenv("LOGTO_REDIRECT_URI")
@@ -121,8 +113,6 @@ func exchangeCodeForToken(code string) (*TokenResponse, error) {
 	data.Set("redirect_uri", redirectURI)
 
 	tokenURL := endpoint + "oidc/token"
-	log.Printf("Exchanging code for token at URL: %s", tokenURL)
-
 	req, err := http.NewRequest("POST", tokenURL, bytes.NewBufferString(data.Encode()))
 	if err != nil {
 		return nil, err
@@ -130,21 +120,12 @@ func exchangeCodeForToken(code string) (*TokenResponse, error) {
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	// Increase timeout to 30 seconds for production network delays
-	client := &http.Client{Timeout: 30 * time.Second}
-
-	log.Printf("Sending token exchange request...")
-	start := time.Now()
+	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
-	elapsed := time.Since(start)
-
 	if err != nil {
-		log.Printf("Token exchange request failed after %v: %v", elapsed, err)
 		return nil, err
 	}
 	defer resp.Body.Close()
-
-	log.Printf("Token exchange request completed in %v with status: %d", elapsed, resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
