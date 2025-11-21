@@ -1,6 +1,5 @@
 # Environment variables
 .env
-frontend/.env
 
 # Database
 *.db
@@ -27,14 +26,3 @@ vendor/
 
 # Build file
 simplelog
-
-# Frontend
-frontend/node_modules
-frontend/dist
-frontend/.vite
-
-# Docker
-postgres_data/
-
-# Production env (if needed to override)
-.env.production.local
