@@ -77,6 +77,10 @@ func main() {
 	api.Put("/comments/:id", handlers.UpdateComment)
 	api.Delete("/comments/:id", handlers.DeleteComment)
 
+	// Image upload routes
+	api.Post("/upload/image", handlers.UploadImage)
+	api.Delete("/upload/image/:filename", handlers.DeleteImage)
+
 	// Start server
 	port := os.Getenv("PORT")
 	if port == "" {

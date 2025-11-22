@@ -69,6 +69,9 @@ function setupEventListeners() {
     });
 
     document.getElementById('delete-post-btn')?.addEventListener('click', handleDeletePost);
+
+    // Image upload event listeners
+    setupImageUpload();
 }
 
 async function loadCurrentUser() {
@@ -455,6 +458,28 @@ function getPreview(content, maxLength = 50) {
 function renderMarkdown(content) {
     let html = escapeHtml(content);
 
+    // Images - Process BEFORE escaping to preserve URLs
+    // Need to unescape the image markdown first
+    const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+    const images = [];
+    let match;
+
+    // Extract images before other processing
+    while ((match = imageRegex.exec(content)) !== null) {
+        images.push({
+            full: match[0],
+            alt: match[1],
+            url: match[2]
+        });
+    }
+
+    // Replace images in escaped HTML
+    images.forEach(img => {
+        const escapedMarkdown = escapeHtml(img.full);
+        const imageTag = `<img src="${img.url}" alt="${escapeHtml(img.alt)}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0;">`;
+        html = html.replace(escapedMarkdown, imageTag);
+    });
+
     // Headers
     html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
     html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
@@ -772,4 +797,181 @@ async function deleteComment(commentId) {
         console.error('Error deleting comment:', error);
         alert('댓글 삭제에 실패했습니다.');
     }
+}
+
+// Image Upload Functionality
+let uploadedImageUrl = null;
+
+function setupImageUpload() {
+    const dropZone = document.getElementById('image-drop-zone');
+    const fileInput = document.getElementById('image-file-input');
+    const previewContainer = document.getElementById('image-preview-container');
+    const preview = document.getElementById('image-preview');
+    const copyMarkdownBtn = document.getElementById('copy-markdown-btn');
+    const removeImageBtn = document.getElementById('remove-image-btn');
+    const progressContainer = document.getElementById('upload-progress');
+    const imageUrlDisplay = document.getElementById('image-url-display');
+
+    // Click to upload
+    dropZone.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    // File selected via input
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            handleImageFile(file);
+        }
+    });
+
+    // Drag and drop
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('drag-over');
+
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            handleImageFile(file);
+        } else {
+            alert('이미지 파일만 업로드할 수 있습니다.');
+        }
+    });
+
+    // Copy markdown button
+    copyMarkdownBtn.addEventListener('click', () => {
+        if (uploadedImageUrl) {
+            const markdown = `![이미지](${uploadedImageUrl})`;
+            copyToClipboard(markdown);
+
+            // Insert at cursor position
+            const textarea = document.getElementById('post-content');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            textarea.value = text.substring(0, start) + markdown + text.substring(end);
+            textarea.focus();
+            textarea.setSelectionRange(start + markdown.length, start + markdown.length);
+
+            // Show feedback
+            copyMarkdownBtn.textContent = '✓ 삽입 완료!';
+            setTimeout(() => {
+                copyMarkdownBtn.textContent = '마크다운 복사';
+            }, 2000);
+        }
+    });
+
+    // Remove image button
+    removeImageBtn.addEventListener('click', () => {
+        resetImageUpload();
+    });
+}
+
+async function handleImageFile(file) {
+    const dropZone = document.getElementById('image-drop-zone');
+    const previewContainer = document.getElementById('image-preview-container');
+    const preview = document.getElementById('image-preview');
+    const progressContainer = document.getElementById('upload-progress');
+    const imageUrlDisplay = document.getElementById('image-url-display');
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        alert('파일 크기는 10MB를 초과할 수 없습니다.');
+        return;
+    }
+
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        preview.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+
+    // Show progress
+    dropZone.style.display = 'none';
+    progressContainer.style.display = 'block';
+
+    // Upload file
+    try {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const response = await fetch('/api/upload/image', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error('Upload failed');
+        }
+
+        const data = await response.json();
+        uploadedImageUrl = data.url;
+
+        // Show preview
+        progressContainer.style.display = 'none';
+        previewContainer.style.display = 'block';
+        imageUrlDisplay.textContent = `URL: ${data.url}`;
+
+        console.log('Image uploaded successfully:', data);
+    } catch (error) {
+        console.error('Error uploading image:', error);
+        alert('이미지 업로드에 실패했습니다.');
+        resetImageUpload();
+    }
+}
+
+function resetImageUpload() {
+    const dropZone = document.getElementById('image-drop-zone');
+    const previewContainer = document.getElementById('image-preview-container');
+    const progressContainer = document.getElementById('upload-progress');
+    const fileInput = document.getElementById('image-file-input');
+
+    dropZone.style.display = 'flex';
+    previewContainer.style.display = 'none';
+    progressContainer.style.display = 'none';
+    fileInput.value = '';
+    uploadedImageUrl = null;
+}
+
+function copyToClipboard(text) {
+    // Try modern clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => {
+            // Fallback
+            fallbackCopyToClipboard(text);
+        });
+    } else {
+        // Fallback for older browsers
+        fallbackCopyToClipboard(text);
+    }
+}
+
+function fallbackCopyToClipboard(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+        document.execCommand('copy');
+    } catch (err) {
+        console.error('Could not copy text:', err);
+    }
+    document.body.removeChild(textArea);
 }

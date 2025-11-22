@@ -26,3 +26,6 @@ vendor/
 
 # Build file
 simplelog
+
+# Img files
+public/uploads

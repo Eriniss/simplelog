@@ -37,6 +37,9 @@ COPY .env .env
 # Create data directory for SQLite database
 RUN mkdir -p /root/data
 
+# Create uploads directory for images
+RUN mkdir -p /root/public/uploads && chmod 755 /root/public/uploads
+
 # Expose port
 EXPOSE 3000
 
