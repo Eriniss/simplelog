@@ -10,10 +10,9 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      # Persist SQLite database
+      # Persist SQLite database and uploaded images
       - simplelog_data:/root/data
-      # Store blog.db in the data directory
-      - simplelog_data:/root
+      - simplelog_uploads:/root/public/uploads
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/posts"]
       interval: 30s
@@ -28,4 +27,6 @@ services:
 
 volumes:
   simplelog_data:
+    driver: local
+  simplelog_uploads:
     driver: local
