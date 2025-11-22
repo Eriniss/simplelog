@@ -1,0 +1,54 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+simplelog
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test files
+*_test.go
+
+# Database files (will be created in volume)
+blog.db
+blog.db-shm
+blog.db-wal
+
+# Logs
+*.log
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Documentation (optional, comment out if you want to include)
+# README.md
+# CLAUDE.md
+
+# Docker files (don't need these inside the image)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github
+
+# Node modules (if any)
+node_modules
+
+# Frontend build artifacts (already in public/)
+frontend/node_modules
+frontend/dist
+
+# Temporary files
+tmp/
+temp/
