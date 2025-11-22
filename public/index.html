@@ -76,23 +76,13 @@
                                 </svg>
                                 <p class="drop-zone-text">이미지를 드래그하거나 클릭하세요</p>
                                 <p class="drop-zone-hint">JPEG, PNG, GIF, WebP (최대 10MB)</p>
+                                <p class="drop-zone-hint">업로드하면 자동으로 마크다운이 삽입됩니다</p>
                                 <input type="file" id="image-file-input" accept="image/*" style="display: none;">
-                            </div>
-                            <div id="image-preview-container" class="image-preview-container" style="display: none;">
-                                <div class="image-preview-item">
-                                    <img id="image-preview" class="image-preview-img" alt="Preview">
-                                    <div class="image-preview-actions">
-                                        <button type="button" id="copy-markdown-btn" class="btn btn-sm btn-secondary">마크다운 복사</button>
-                                        <button type="button" id="remove-image-btn" class="btn btn-sm btn-danger">제거</button>
-                                    </div>
-                                    <div id="image-url-display" class="image-url-display"></div>
-                                </div>
                             </div>
                             <div id="upload-progress" class="upload-progress" style="display: none;">
                                 <div class="progress-bar">
                                     <div class="progress-bar-fill"></div>
                                 </div>
-                                <p class="progress-text">업로드 중...</p>
                             </div>
                         </div>
                     </div>

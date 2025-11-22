@@ -91,6 +91,9 @@ func CreatePost(c fiber.Ctx) error {
 		})
 	}
 
+	// Cleanup unused images after creating post
+	go CleanupUnusedImages()
+
 	return c.Status(fiber.StatusCreated).JSON(post)
 }
 
@@ -147,6 +150,9 @@ func UpdatePost(c fiber.Ctx) error {
 		})
 	}
 
+	// Cleanup unused images after updating post
+	go CleanupUnusedImages()
+
 	return c.JSON(post)
 }
 
@@ -188,6 +194,9 @@ func DeletePost(c fiber.Ctx) error {
 			"error": "Failed to delete post",
 		})
 	}
+
+	// Cleanup unused images after deleting post
+	go CleanupUnusedImages()
 
 	return c.JSON(fiber.Map{
 		"message": "Post deleted successfully",

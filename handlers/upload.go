@@ -7,10 +7,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
+	"simplelog/database"
+	"simplelog/models"
 )
 
 const (
@@ -112,4 +115,68 @@ func DeleteImage(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"message": "File deleted successfully",
 	})
+}
+
+// CleanupUnusedImages removes images that are not referenced in any post
+func CleanupUnusedImages() error {
+	log.Println("Starting cleanup of unused images...")
+
+	// Get all posts
+	var posts []models.Post
+	if err := database.DB.Find(&posts).Error; err != nil {
+		log.Printf("Error fetching posts for cleanup: %v", err)
+		return err
+	}
+
+	// Extract all image URLs from post content
+	usedImages := make(map[string]bool)
+	imageRegex := regexp.MustCompile(`!\[.*?\]\((/uploads/[^)]+)\)`)
+
+	for _, post := range posts {
+		matches := imageRegex.FindAllStringSubmatch(post.Content, -1)
+		for _, match := range matches {
+			if len(match) > 1 {
+				// Extract just the filename from the URL
+				imagePath := match[1]
+				filename := filepath.Base(imagePath)
+				usedImages[filename] = true
+			}
+		}
+	}
+
+	log.Printf("Found %d images in use across %d posts", len(usedImages), len(posts))
+
+	// Read all files in uploads directory
+	files, err := os.ReadDir(uploadDir)
+	if err != nil {
+		// If directory doesn't exist, nothing to clean up
+		if os.IsNotExist(err) {
+			log.Println("Uploads directory does not exist, nothing to clean up")
+			return nil
+		}
+		log.Printf("Error reading uploads directory: %v", err)
+		return err
+	}
+
+	// Delete unused images
+	deletedCount := 0
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+
+		filename := file.Name()
+		if !usedImages[filename] {
+			filePath := filepath.Join(uploadDir, filename)
+			if err := os.Remove(filePath); err != nil {
+				log.Printf("Error deleting unused image %s: %v", filename, err)
+			} else {
+				log.Printf("Deleted unused image: %s", filename)
+				deletedCount++
+			}
+		}
+	}
+
+	log.Printf("Cleanup completed: deleted %d unused images", deletedCount)
+	return nil
 }

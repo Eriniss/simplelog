@@ -800,17 +800,11 @@ async function deleteComment(commentId) {
 }
 
 // Image Upload Functionality
-let uploadedImageUrl = null;
-
 function setupImageUpload() {
     const dropZone = document.getElementById('image-drop-zone');
     const fileInput = document.getElementById('image-file-input');
-    const previewContainer = document.getElementById('image-preview-container');
-    const preview = document.getElementById('image-preview');
-    const copyMarkdownBtn = document.getElementById('copy-markdown-btn');
-    const removeImageBtn = document.getElementById('remove-image-btn');
-    const progressContainer = document.getElementById('upload-progress');
-    const imageUrlDisplay = document.getElementById('image-url-display');
+
+    if (!dropZone || !fileInput) return;
 
     // Click to upload
     dropZone.addEventListener('click', () => {
@@ -822,6 +816,7 @@ function setupImageUpload() {
         const file = e.target.files[0];
         if (file) {
             handleImageFile(file);
+            fileInput.value = ''; // Reset input
         }
     });
 
@@ -847,61 +842,24 @@ function setupImageUpload() {
         if (file && file.type.startsWith('image/')) {
             handleImageFile(file);
         } else {
-            alert('이미지 파일만 업로드할 수 있습니다.');
+            showToast('이미지 파일만 업로드할 수 있습니다.', 'error');
         }
-    });
-
-    // Copy markdown button
-    copyMarkdownBtn.addEventListener('click', () => {
-        if (uploadedImageUrl) {
-            const markdown = `![이미지](${uploadedImageUrl})`;
-            copyToClipboard(markdown);
-
-            // Insert at cursor position
-            const textarea = document.getElementById('post-content');
-            const start = textarea.selectionStart;
-            const end = textarea.selectionEnd;
-            const text = textarea.value;
-            textarea.value = text.substring(0, start) + markdown + text.substring(end);
-            textarea.focus();
-            textarea.setSelectionRange(start + markdown.length, start + markdown.length);
-
-            // Show feedback
-            copyMarkdownBtn.textContent = '✓ 삽입 완료!';
-            setTimeout(() => {
-                copyMarkdownBtn.textContent = '마크다운 복사';
-            }, 2000);
-        }
-    });
-
-    // Remove image button
-    removeImageBtn.addEventListener('click', () => {
-        resetImageUpload();
     });
 }
 
 async function handleImageFile(file) {
     const dropZone = document.getElementById('image-drop-zone');
-    const previewContainer = document.getElementById('image-preview-container');
-    const preview = document.getElementById('image-preview');
     const progressContainer = document.getElementById('upload-progress');
-    const imageUrlDisplay = document.getElementById('image-url-display');
 
     // Validate file size (10MB)
     if (file.size > 10 * 1024 * 1024) {
-        alert('파일 크기는 10MB를 초과할 수 없습니다.');
+        showToast('파일 크기는 10MB를 초과할 수 없습니다.', 'error');
         return;
     }
 
-    // Show preview immediately
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        preview.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-
     // Show progress
-    dropZone.style.display = 'none';
+    dropZone.style.opacity = '0.5';
+    dropZone.style.pointerEvents = 'none';
     progressContainer.style.display = 'block';
 
     // Upload file
@@ -920,32 +878,64 @@ async function handleImageFile(file) {
         }
 
         const data = await response.json();
-        uploadedImageUrl = data.url;
+        const markdown = `![이미지](${data.url})`;
 
-        // Show preview
-        progressContainer.style.display = 'none';
-        previewContainer.style.display = 'block';
-        imageUrlDisplay.textContent = `URL: ${data.url}`;
+        // Auto insert into textarea at cursor position
+        const textarea = document.getElementById('post-content');
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+
+        // Insert markdown with newlines for better formatting
+        const before = text.substring(0, start);
+        const after = text.substring(end);
+        const newText = before + (before && !before.endsWith('\n') ? '\n' : '') + markdown + '\n' + after;
+
+        textarea.value = newText;
+        const newCursorPos = start + markdown.length + (before && !before.endsWith('\n') ? 1 : 0) + 1;
+        textarea.focus();
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+
+        // Copy to clipboard
+        copyToClipboard(markdown);
+
+        // Show success message
+        showToast('✓ 이미지 업로드 완료! 마크다운이 삽입되었습니다.', 'success');
 
         console.log('Image uploaded successfully:', data);
     } catch (error) {
         console.error('Error uploading image:', error);
-        alert('이미지 업로드에 실패했습니다.');
-        resetImageUpload();
+        showToast('이미지 업로드에 실패했습니다.', 'error');
+    } finally {
+        // Reset UI
+        dropZone.style.opacity = '1';
+        dropZone.style.pointerEvents = 'auto';
+        progressContainer.style.display = 'none';
     }
 }
 
-function resetImageUpload() {
-    const dropZone = document.getElementById('image-drop-zone');
-    const previewContainer = document.getElementById('image-preview-container');
-    const progressContainer = document.getElementById('upload-progress');
-    const fileInput = document.getElementById('image-file-input');
+// Toast notification function
+function showToast(message, type = 'info') {
+    // Remove existing toast
+    const existingToast = document.querySelector('.toast-notification');
+    if (existingToast) {
+        existingToast.remove();
+    }
 
-    dropZone.style.display = 'flex';
-    previewContainer.style.display = 'none';
-    progressContainer.style.display = 'none';
-    fileInput.value = '';
-    uploadedImageUrl = null;
+    // Create toast
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    // Show toast
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    // Hide and remove toast
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 
 function copyToClipboard(text) {
