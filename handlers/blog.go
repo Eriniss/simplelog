@@ -163,14 +163,10 @@ func CreatePost(c fiber.Ctx) error {
 	}
 
 	userID := claims.Sub
-	// Get user info from Logto
-	user, err := GetLogtoUser(userID)
-	if err != nil {
-		log.Printf("Failed to get user info: %v", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to fetch user profile",
-		})
-	}
+
+	// Use claims directly for user info (avoiding M2M call which might fail if not configured)
+	authorUsername := middleware.GetUsername(claims)
+	authorAvatar := claims.Picture
 
 	// Handle Tags
 	var tags []models.Tag
@@ -188,8 +184,8 @@ func CreatePost(c fiber.Ctx) error {
 		Title:          req.Title,
 		Content:        req.Content,
 		AuthorID:       userID,
-		AuthorUsername: user.Username,
-		AuthorAvatar:   user.Avatar,
+		AuthorUsername: authorUsername,
+		AuthorAvatar:   authorAvatar,
 		Tags:           tags,
 		IsSecret:       req.IsSecret,
 	}
