@@ -30,8 +30,37 @@ type UpdatePostRequest struct {
 // GetPosts returns all posts (author info fetched separately by frontend)
 func GetPosts(c fiber.Ctx) error {
 	var posts []models.Post
-	result := database.DB.Order("created_at desc").Find(&posts)
-	if result.Error != nil {
+
+	// Get query params
+	search := c.Query("search")
+	searchType := c.Query("type") // "title" or "tag"
+
+	// Get current user ID (if logged in)
+	var userID string
+	if claims, ok := c.Locals("userClaims").(*middleware.LogtoClaims); ok {
+		userID = claims.Sub
+	}
+
+	query := database.DB.Preload("Tags").Order("created_at desc")
+
+	// Search Logic
+	if search != "" {
+		if searchType == "tag" {
+			// Join with tags table
+			query = query.Joins("JOIN post_tags ON post_tags.post_id = posts.id").
+				Joins("JOIN tags ON tags.id = post_tags.tag_id").
+				Where("tags.name LIKE ?", "%"+search+"%")
+		} else {
+			// Default to title search
+			query = query.Where("title LIKE ?", "%"+search+"%")
+		}
+	}
+
+	// Secret Logic: Show public posts OR (secret posts AND author is me)
+	// (is_secret = false) OR (is_secret = true AND author_id = userID)
+	query = query.Where("is_secret = ? OR (is_secret = ? AND author_id = ?)", false, true, userID)
+
+	if err := query.Find(&posts).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch posts",
 		})
@@ -43,13 +72,25 @@ func GetPosts(c fiber.Ctx) error {
 // GetPost returns a single post by ID (author info fetched separately by frontend)
 func GetPost(c fiber.Ctx) error {
 	id := c.Params("id")
-
 	var post models.Post
-	result := database.DB.First(&post, id)
-	if result.Error != nil {
+
+	if err := database.DB.Preload("Tags").First(&post, id).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Post not found",
 		})
+	}
+
+	// Secret Check
+	if post.IsSecret {
+		var userID string
+		if claims, ok := c.Locals("userClaims").(*middleware.LogtoClaims); ok {
+			userID = claims.Sub
+		}
+		if post.AuthorID != userID {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "This is a secret post",
+			})
+		}
 	}
 
 	return c.JSON(post)
@@ -64,8 +105,16 @@ func CreatePost(c fiber.Ctx) error {
 		})
 	}
 
+	// Parse request body
+	type CreatePostRequest struct {
+		Title    string   `json:"title"`
+		Content  string   `json:"content"`
+		Tags     []string `json:"tags"`
+		IsSecret bool     `json:"isSecret"`
+	}
+
 	var req CreatePostRequest
-	if err := c.Bind().JSON(&req); err != nil {
+	if err := c.Bind().Body(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
 		})
@@ -77,12 +126,36 @@ func CreatePost(c fiber.Ctx) error {
 		})
 	}
 
+	userID := claims.Sub
+	// Get user info from Logto
+	user, err := GetLogtoUser(userID)
+	if err != nil {
+		log.Printf("Failed to get user info: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch user profile",
+		})
+	}
+
+	// Handle Tags
+	var tags []models.Tag
+	for _, tagName := range req.Tags {
+		var tag models.Tag
+		// FirstOrCreate to avoid duplicates
+		if err := database.DB.FirstOrCreate(&tag, models.Tag{Name: tagName}).Error; err != nil {
+			log.Printf("Failed to create/find tag: %v", err)
+			continue
+		}
+		tags = append(tags, tag)
+	}
+
 	post := models.Post{
 		Title:          req.Title,
 		Content:        req.Content,
-		AuthorID:       claims.Sub,
-		AuthorUsername: middleware.GetUsername(claims),
-		AuthorAvatar:   claims.Picture,
+		AuthorID:       userID,
+		AuthorUsername: user.Username,
+		AuthorAvatar:   user.Avatar,
+		Tags:           tags,
+		IsSecret:       req.IsSecret,
 	}
 
 	if err := database.DB.Create(&post).Error; err != nil {
@@ -130,18 +203,40 @@ func UpdatePost(c fiber.Ctx) error {
 		})
 	}
 
+	// Parse request body
+	type UpdatePostRequest struct {
+		Title    string   `json:"title"`
+		Content  string   `json:"content"`
+		Tags     []string `json:"tags"`
+		IsSecret bool     `json:"isSecret"`
+	}
+
 	var req UpdatePostRequest
-	if err := c.Bind().JSON(&req); err != nil {
+	if err := c.Bind().Body(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
 		})
 	}
 
-	if req.Title != "" {
-		post.Title = req.Title
+	// Handle Tags
+	var tags []models.Tag
+	for _, tagName := range req.Tags {
+		var tag models.Tag
+		if err := database.DB.FirstOrCreate(&tag, models.Tag{Name: tagName}).Error; err != nil {
+			log.Printf("Failed to create/find tag: %v", err)
+			continue
+		}
+		tags = append(tags, tag)
 	}
-	if req.Content != "" {
-		post.Content = req.Content
+
+	// Update fields
+	post.Title = req.Title
+	post.Content = req.Content
+	post.IsSecret = req.IsSecret
+
+	// Replace tags
+	if err := database.DB.Model(&post).Association("Tags").Replace(tags); err != nil {
+		log.Printf("Failed to update tags: %v", err)
 	}
 
 	if err := database.DB.Save(&post).Error; err != nil {

@@ -18,7 +18,7 @@ func Init() {
 	}
 
 	// Auto migrate (User table removed - all user data from Logto)
-	err = DB.AutoMigrate(&models.Post{}, &models.Comment{})
+	err = DB.AutoMigrate(&models.Post{}, &models.Comment{}, &models.Tag{})
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}

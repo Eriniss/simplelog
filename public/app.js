@@ -73,6 +73,68 @@ function setupEventListeners() {
     // Textarea image drag-and-drop
     setupTextareaDragDrop();
 
+    // Tag Input Logic
+    const tagInput = document.getElementById('tag-input');
+    const tagList = document.getElementById('tag-list');
+    let currentTags = [];
+
+    if (tagInput) {
+        tagInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const tag = tagInput.value.trim();
+                if (tag && !currentTags.includes(tag)) {
+                    currentTags.push(tag);
+                    renderTags();
+                    tagInput.value = '';
+                }
+            } else if (e.key === 'Backspace' && tagInput.value === '' && currentTags.length > 0) {
+                currentTags.pop();
+                renderTags();
+            }
+        });
+    }
+
+    function renderTags() {
+        tagList.innerHTML = '';
+        currentTags.forEach(tag => {
+            const tagEl = document.createElement('span');
+            tagEl.className = 'tag-badge';
+            tagEl.innerHTML = `${escapeHtml(tag)} <span class="remove-tag" onclick="removeTag('${escapeHtml(tag)}')">&times;</span>`;
+            tagList.appendChild(tagEl);
+        });
+    }
+
+    window.removeTag = function (tag) {
+        currentTags = currentTags.filter(t => t !== tag);
+        renderTags();
+    };
+
+    // Expose currentTags for form submission
+    window.getCurrentTags = () => currentTags;
+    window.setCurrentTags = (tags) => {
+        currentTags = tags || [];
+        renderTags();
+    };
+
+    // Search Logic with Debounce
+    const searchInput = document.getElementById('search-input');
+    const searchType = document.getElementById('search-type');
+    let debounceTimer;
+
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                loadPosts(searchInput.value, searchType.value);
+            }, 500);
+        });
+
+        searchType.addEventListener('change', () => {
+            loadPosts(searchInput.value, searchType.value);
+        });
+    }
+
     // Shift+Enter to submit
     const postContent = document.getElementById('post-content');
     if (postContent) {
@@ -132,27 +194,40 @@ function showUserInfo() {
         avatarImg.style.display = 'block';
     } else {
         console.log('No avatar found or empty avatar');
+        avatarImg.style.display = 'none';
     }
 
     userInfo.style.display = 'flex';
 }
 
-async function loadPosts() {
+// API interactions
+async function loadPosts(search = '', type = 'title') {
+    const postsList = document.getElementById('posts-list');
+    const container = document.getElementById('posts-container');
+
+    if (!postsList || !container) return;
+
+    container.innerHTML = '<div class="loading">게시글을 불러오는 중...</div>';
+
     try {
-        const response = await fetch('/api/posts', {
+        let url = '/api/posts';
+        if (search) {
+            url += `?search=${encodeURIComponent(search)}&type=${encodeURIComponent(type)}`;
+        }
+
+        const response = await fetch(url, {
             credentials: 'include'
         });
 
         if (!response.ok) {
-            throw new Error('Failed to load posts');
+            throw new Error('Failed to fetch posts');
         }
 
         const posts = await response.json();
         renderPosts(posts);
     } catch (error) {
         console.error('Error loading posts:', error);
-        document.getElementById('posts-container').innerHTML =
-            '<div class="empty-state">글을 불러오는데 실패했습니다.</div>';
+        container.innerHTML = '<div class="error">게시글을 불러오는데 실패했습니다.</div>';
     }
 }
 
@@ -168,18 +243,31 @@ function renderPosts(posts) {
         const avatarUrl = post.AuthorAvatar || '';
         const hasAvatar = avatarUrl && avatarUrl.trim() !== '';
 
+        const date = new Date(post.CreatedAt).toLocaleDateString();
+        const isSecret = post.IsSecret ? '<span class="secret-icon" title="비밀글">🔒</span>' : '';
+
+        let tagsHtml = '';
+        if (post.Tags && post.Tags.length > 0) {
+            tagsHtml = `<div class="post-tags">
+                ${post.Tags.map(tag => `<span class="post-tag">#${escapeHtml(tag.Name)}</span>`).join('')}
+            </div>`;
+        }
+
         return `
             <div class="post-card" data-post-id="${post.ID}">
-                <h3 class="post-card-title">${escapeHtml(post.Title)}</h3>
+                <h3 class="post-card-title">${escapeHtml(post.Title)} ${isSecret}</h3>
                 <div class="post-meta">
                     <div class="post-card-author">
                         ${hasAvatar ? `<img src="${escapeHtml(avatarUrl)}" alt="프로필" class="post-card-avatar">` : ''}
                         <span class="post-card-author-name">${escapeHtml(post.AuthorUsername || '익명')}</span>
                     </div>
                     <span>•</span>
-                    <span class="post-card-date">${formatDate(post.CreatedAt)}</span>
+                    <span class="post-card-date">${date}</span>
                 </div>
-                <div class="post-preview">${getPreview(post.Content)}</div>
+                ${tagsHtml}
+                <div class="post-preview">
+                    ${escapeHtml(post.Content.substring(0, 150))}${post.Content.length > 150 ? '...' : ''}
+                </div>
             </div>
         `;
     }).join('');
@@ -223,15 +311,34 @@ function renderSinglePost(post) {
     document.getElementById('detail-title').dataset.postId = post.ID;
 
     // Render author with avatar
-    const authorElement = document.getElementById('detail-author');
     const avatarUrl = post.AuthorAvatar || '';
     const hasAvatar = avatarUrl && avatarUrl.trim() !== '';
     const authorId = post.AuthorID || '';
+    const isSecret = post.IsSecret ? '<span class="secret-icon" title="비밀글">🔒</span>' : '';
 
+    document.getElementById('detail-title').innerHTML = `${escapeHtml(post.Title)} ${isSecret}`;
+
+    const authorElement = document.getElementById('detail-author');
     authorElement.innerHTML = `
         ${hasAvatar ? `<img src="${escapeHtml(avatarUrl)}" alt="프로필" class="post-author-avatar">` : ''}
         <span class="post-author-name">${escapeHtml(post.AuthorUsername || '익명')}</span>
     `;
+
+    // Render Tags
+    const tagsContainer = document.createElement('div');
+    tagsContainer.className = 'post-tags';
+    if (post.Tags && post.Tags.length > 0) {
+        tagsContainer.innerHTML = post.Tags.map(tag => `<span class="post-tag">#${escapeHtml(tag.Name)}</span>`).join('');
+    }
+    // Insert tags after meta info (before content)
+    const metaInfo = document.querySelector('.post-detail .post-meta');
+    // Remove existing tags if any (re-rendering)
+    const existingTags = document.querySelector('.post-detail .post-tags');
+    if (existingTags) existingTags.remove();
+
+    if (post.Tags && post.Tags.length > 0) {
+        metaInfo.parentNode.insertBefore(tagsContainer, metaInfo.nextSibling);
+    }
 
     // Format date with edit info if post was modified
     let dateText = formatDate(post.CreatedAt);
@@ -391,33 +498,24 @@ function hidePostForm() {
 async function handleSubmitPost(e) {
     e.preventDefault();
 
-    const postId = document.getElementById('post-id').value;
     const title = document.getElementById('post-title').value;
     const content = document.getElementById('post-content').value;
+    const postId = document.getElementById('post-id').value;
+    const isSecret = document.getElementById('post-secret').checked;
+    const tags = window.getCurrentTags();
+
+    const url = postId ? `/api/posts/${postId}` : '/api/posts';
+    const method = postId ? 'PUT' : 'POST';
 
     try {
-        let response;
-        if (postId) {
-            // Update existing post
-            response = await fetch(`/api/posts/${postId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({ title, content })
-            });
-        } else {
-            // Create new post
-            response = await fetch('/api/posts', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({ title, content })
-            });
-        }
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ title, content, tags, isSecret })
+        });
 
         if (!response.ok) {
             throw new Error('Failed to save post');
@@ -503,6 +601,7 @@ function showListView() {
     currentView = 'list';
     document.querySelector('main.container').classList.remove('wide-mode');
     document.getElementById('posts-list').style.display = 'block';
+    document.getElementById('search-bar-container').style.display = 'flex';
     document.getElementById('single-post-view').style.display = 'none';
     document.getElementById('post-form-container').style.display = 'none';
     if (currentUser) {
@@ -514,6 +613,7 @@ function showSingleView() {
     currentView = 'single';
     document.querySelector('main.container').classList.remove('wide-mode');
     document.getElementById('posts-list').style.display = 'none';
+    document.getElementById('search-bar-container').style.display = 'none';
     document.getElementById('single-post-view').style.display = 'block';
     document.getElementById('post-form-container').style.display = 'none';
     document.getElementById('new-post-btn-container').style.display = 'none';
@@ -523,6 +623,7 @@ function showFormView() {
     currentView = 'form';
     document.querySelector('main.container').classList.add('wide-mode');
     document.getElementById('posts-list').style.display = 'none';
+    document.getElementById('search-bar-container').style.display = 'none';
     document.getElementById('single-post-view').style.display = 'none';
     document.getElementById('post-form-container').style.display = 'block';
     document.getElementById('new-post-btn-container').style.display = 'none';
