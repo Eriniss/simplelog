@@ -148,8 +148,27 @@
 
         <!-- Posts List -->
         <div id="posts-list">
-            <h2>최근 글</h2>
+            <div class="list-header">
+                <h2>최신 글</h2>
+            </div>
             <div id="posts-container"></div>
+
+            <!-- Pagination Controls -->
+            <div class="pagination-wrapper"
+                style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 2rem; padding-bottom: 2rem;">
+                <div id="pagination-controls" class="pagination-container" style="display: none; margin: 0;">
+                    <!-- Will be populated by JS -->
+                </div>
+                <div class="page-size-selector">
+                    <select id="page-size-select">
+                        <option value="10">10개씩</option>
+                        <option value="25">25개씩</option>
+                        <option value="50">50개씩</option>
+                        <option value="100">100개씩</option>
+                        <option value="all">전체</option>
+                    </select>
+                </div>
+            </div>
         </div>
     </main>
 

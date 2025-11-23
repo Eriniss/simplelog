@@ -41,7 +41,26 @@ func GetPosts(c fiber.Ctx) error {
 		userID = claims.Sub
 	}
 
-	query := database.DB.Preload("Tags").Order("created_at desc")
+	// Pagination
+	limit := 10
+	if l := c.Query("limit"); l != "" {
+		if l == "all" {
+			limit = -1
+		} else {
+			if val, err := strconv.Atoi(l); err == nil && val > 0 {
+				limit = val
+			}
+		}
+	}
+	offset := 0
+	if o := c.Query("offset"); o != "" {
+		if val, err := strconv.Atoi(o); err == nil && val >= 0 {
+			offset = val
+		}
+	}
+
+	// Build base query
+	query := database.DB.Model(&models.Post{})
 
 	// Search Logic
 	if search != "" {
@@ -60,13 +79,30 @@ func GetPosts(c fiber.Ctx) error {
 	// (is_secret = false) OR (is_secret = true AND author_id = userID)
 	query = query.Where("is_secret = ? OR (is_secret = ? AND author_id = ?)", false, true, userID)
 
-	if err := query.Find(&posts).Error; err != nil {
+	// Count total posts (before pagination)
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to count posts",
+		})
+	}
+
+	// Apply Pagination
+	if limit > 0 {
+		query = query.Limit(limit).Offset(offset)
+	}
+
+	// Fetch Posts
+	if err := query.Preload("Tags").Order("created_at desc").Find(&posts).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch posts",
 		})
 	}
 
-	return c.JSON(posts)
+	return c.JSON(fiber.Map{
+		"posts": posts,
+		"total": total,
+	})
 }
 
 // GetPost returns a single post by ID (author info fetched separately by frontend)

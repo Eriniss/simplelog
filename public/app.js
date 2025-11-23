@@ -135,6 +135,13 @@ function setupEventListeners() {
         });
     }
 
+    const pageSizeSelect = document.getElementById('page-size-select');
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', (e) => {
+            window.changePageSize(e.target.value);
+        });
+    }
+
     // Shift+Enter to submit
     const postContent = document.getElementById('post-content');
     if (postContent) {
@@ -200,19 +207,26 @@ function showUserInfo() {
     userInfo.style.display = 'flex';
 }
 
+// Pagination State
+let currentPage = 1;
+let limit = 10;
+let totalPosts = 0;
+
 // API interactions
-async function loadPosts(search = '', type = 'title') {
+async function loadPosts(search = '', type = 'title', page = 1) {
     const postsList = document.getElementById('posts-list');
     const container = document.getElementById('posts-container');
+    const paginationControls = document.getElementById('pagination-controls');
 
     if (!postsList || !container) return;
 
     container.innerHTML = '<div class="loading">게시글을 불러오는 중...</div>';
+    currentPage = page;
 
     try {
-        let url = '/api/posts';
+        let url = `/api/posts?limit=${limit === 'all' ? 'all' : limit}&offset=${limit === 'all' ? 0 : (page - 1) * limit}`;
         if (search) {
-            url += `?search=${encodeURIComponent(search)}&type=${encodeURIComponent(type)}`;
+            url += `&search=${encodeURIComponent(search)}&type=${encodeURIComponent(type)}`;
         }
 
         const response = await fetch(url, {
@@ -223,8 +237,12 @@ async function loadPosts(search = '', type = 'title') {
             throw new Error('Failed to fetch posts');
         }
 
-        const posts = await response.json();
+        const data = await response.json();
+        const posts = data.posts || [];
+        totalPosts = data.total || 0;
+
         renderPosts(posts);
+        renderPagination();
     } catch (error) {
         console.error('Error loading posts:', error);
         container.innerHTML = '<div class="error">게시글을 불러오는데 실패했습니다.</div>';
@@ -282,6 +300,66 @@ function renderPosts(posts) {
         });
     });
 }
+
+function renderPagination() {
+    const container = document.getElementById('pagination-controls');
+    if (!container) return;
+
+    if (limit === 'all' || totalPosts === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    const totalPages = Math.ceil(totalPosts / limit);
+    if (totalPages <= 1) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'flex';
+    let html = '';
+
+    // Prev Button
+    html += `<button class="pagination-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="changePage(${currentPage - 1})">이전</button>`;
+
+    // Page Numbers
+    // Simple logic: show all pages if <= 7, otherwise show range
+    // For simplicity in this iteration, let's show all or a simple range
+    for (let i = 1; i <= totalPages; i++) {
+        if (
+            i === 1 ||
+            i === totalPages ||
+            (i >= currentPage - 2 && i <= currentPage + 2)
+        ) {
+            html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+        } else if (
+            (i === currentPage - 3 && currentPage > 4) ||
+            (i === currentPage + 3 && currentPage < totalPages - 3)
+        ) {
+            html += `<span class="pagination-ellipsis">...</span>`;
+        }
+    }
+
+    // Next Button
+    html += `<button class="pagination-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="changePage(${currentPage + 1})">다음</button>`;
+
+    container.innerHTML = html;
+}
+
+window.changePage = function (page) {
+    const searchInput = document.getElementById('search-input');
+    const searchType = document.getElementById('search-type');
+    loadPosts(searchInput?.value || '', searchType?.value || 'title', page);
+    window.scrollTo(0, 0);
+};
+
+window.changePageSize = function (newLimit) {
+    limit = newLimit === 'all' ? 'all' : parseInt(newLimit);
+    currentPage = 1;
+    const searchInput = document.getElementById('search-input');
+    const searchType = document.getElementById('search-type');
+    loadPosts(searchInput?.value || '', searchType?.value || 'title', 1);
+};
 
 async function showPost(postId) {
     try {
