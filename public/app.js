@@ -70,8 +70,8 @@ function setupEventListeners() {
 
     document.getElementById('delete-post-btn')?.addEventListener('click', handleDeletePost);
 
-    // Image upload event listeners
-    setupImageUpload();
+    // Textarea image drag-and-drop
+    setupTextareaDragDrop();
 }
 
 async function loadCurrentUser() {
@@ -799,57 +799,73 @@ async function deleteComment(commentId) {
     }
 }
 
-// Image Upload Functionality
-function setupImageUpload() {
-    const dropZone = document.getElementById('image-drop-zone');
-    const fileInput = document.getElementById('image-file-input');
+// Image Upload Functionality - Textarea Drag & Drop
+function setupTextareaDragDrop() {
+    const textarea = document.getElementById('post-content');
+    if (!textarea) return;
 
-    if (!dropZone || !fileInput) return;
+    let dragCounter = 0;
 
-    // Click to upload
-    dropZone.addEventListener('click', () => {
-        fileInput.click();
+    // Prevent default drag behavior
+    textarea.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounter++;
+        textarea.classList.add('drag-over');
     });
 
-    // File selected via input
-    fileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            handleImageFile(file);
-            fileInput.value = ''; // Reset input
+    textarea.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounter--;
+        if (dragCounter === 0) {
+            textarea.classList.remove('drag-over');
         }
     });
 
-    // Drag and drop
-    dropZone.addEventListener('dragover', (e) => {
+    textarea.addEventListener('dragover', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        dropZone.classList.add('drag-over');
     });
 
-    dropZone.addEventListener('dragleave', (e) => {
+    textarea.addEventListener('drop', async (e) => {
         e.preventDefault();
         e.stopPropagation();
-        dropZone.classList.remove('drag-over');
+        dragCounter = 0;
+        textarea.classList.remove('drag-over');
+
+        const files = e.dataTransfer.files;
+        if (files.length === 0) return;
+
+        // Get drop position (use current cursor position as fallback)
+        const dropPosition = textarea.selectionStart;
+
+        // Process each image file
+        for (const file of files) {
+            if (file.type.startsWith('image/')) {
+                await handleImageFile(file, dropPosition);
+            } else {
+                showToast('이미지 파일만 업로드할 수 있습니다.', 'error');
+            }
+        }
     });
 
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.classList.remove('drag-over');
-
-        const file = e.dataTransfer.files[0];
-        if (file && file.type.startsWith('image/')) {
-            handleImageFile(file);
-        } else {
-            showToast('이미지 파일만 업로드할 수 있습니다.', 'error');
+    // Paste image from clipboard
+    textarea.addEventListener('paste', async (e) => {
+        const items = e.clipboardData.items;
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                e.preventDefault();
+                const file = item.getAsFile();
+                const pastePosition = textarea.selectionStart;
+                await handleImageFile(file, pastePosition);
+            }
         }
     });
 }
 
-async function handleImageFile(file) {
-    const dropZone = document.getElementById('image-drop-zone');
-    const progressContainer = document.getElementById('upload-progress');
+async function handleImageFile(file, insertPosition = null) {
+    const textarea = document.getElementById('post-content');
 
     // Validate file size (10MB)
     if (file.size > 10 * 1024 * 1024) {
@@ -857,10 +873,10 @@ async function handleImageFile(file) {
         return;
     }
 
-    // Show progress
-    dropZone.style.opacity = '0.5';
-    dropZone.style.pointerEvents = 'none';
-    progressContainer.style.display = 'block';
+    // Show uploading state
+    const originalBorder = textarea.style.border;
+    textarea.style.border = '2px solid #5bd15b';
+    textarea.disabled = true;
 
     // Upload file
     try {
@@ -880,27 +896,23 @@ async function handleImageFile(file) {
         const data = await response.json();
         const markdown = `![이미지](${data.url})`;
 
-        // Auto insert into textarea at cursor position
-        const textarea = document.getElementById('post-content');
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
+        // Insert at specified position or current cursor position
+        const position = insertPosition !== null ? insertPosition : textarea.selectionStart;
         const text = textarea.value;
+        const before = text.substring(0, position);
+        const after = text.substring(position);
 
-        // Insert markdown with newlines for better formatting
-        const before = text.substring(0, start);
-        const after = text.substring(end);
-        const newText = before + (before && !before.endsWith('\n') ? '\n' : '') + markdown + '\n' + after;
+        // Insert with proper spacing
+        const spacing = (before && !before.endsWith('\n')) ? '\n' : '';
+        const newText = before + spacing + markdown + '\n' + after;
 
         textarea.value = newText;
-        const newCursorPos = start + markdown.length + (before && !before.endsWith('\n') ? 1 : 0) + 1;
+        const newCursorPos = position + spacing.length + markdown.length + 1;
         textarea.focus();
         textarea.setSelectionRange(newCursorPos, newCursorPos);
 
-        // Copy to clipboard
-        copyToClipboard(markdown);
-
         // Show success message
-        showToast('✓ 이미지 업로드 완료! 마크다운이 삽입되었습니다.', 'success');
+        showToast('✓ 이미지 업로드 완료!', 'success');
 
         console.log('Image uploaded successfully:', data);
     } catch (error) {
@@ -908,9 +920,8 @@ async function handleImageFile(file) {
         showToast('이미지 업로드에 실패했습니다.', 'error');
     } finally {
         // Reset UI
-        dropZone.style.opacity = '1';
-        dropZone.style.pointerEvents = 'auto';
-        progressContainer.style.display = 'none';
+        textarea.style.border = originalBorder;
+        textarea.disabled = false;
     }
 }
 
