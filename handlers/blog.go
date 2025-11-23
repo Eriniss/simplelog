@@ -230,7 +230,7 @@ func GetCurrentUserInfo(c fiber.Ctx) error {
 	})
 }
 
-// GetUserProfile returns public profile information by finding a recent post or comment by the user
+// GetUserProfile returns public profile information by fetching from Logto
 func GetUserProfile(c fiber.Ctx) error {
 	userID := c.Params("id")
 	if userID == "" {
@@ -239,31 +239,30 @@ func GetUserProfile(c fiber.Ctx) error {
 		})
 	}
 
-	// Try to find user info from their most recent post
-	var post models.Post
-	if err := database.DB.Where("author_id = ?", userID).Order("created_at desc").First(&post).Error; err == nil {
-		return c.JSON(fiber.Map{
-			"ID":       userID,
-			"Username": post.AuthorUsername,
-			"Avatar":   post.AuthorAvatar,
-			"Role":     "user", // We don't store role in denormalized data
+	// Fetch user info from Logto Management API
+	logtoUser, err := GetLogtoUser(userID)
+	if err != nil {
+		log.Printf("Error fetching user from Logto: %v", err)
+		// Return detailed error for debugging
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to fetch user from Logto: %v", err),
 		})
 	}
 
-	// If no post found, try to find from their most recent comment
-	var comment models.Comment
-	if err := database.DB.Where("author_id = ?", userID).Order("created_at desc").First(&comment).Error; err == nil {
-		return c.JSON(fiber.Map{
-			"ID":       userID,
-			"Username": comment.AuthorUsername,
-			"Avatar":   comment.AuthorAvatar,
-			"Role":     "user",
-		})
+	// Extract intro from custom_data
+	intro := ""
+	if logtoUser.CustomData != nil {
+		if customIntro, ok := logtoUser.CustomData["intro"].(string); ok {
+			intro = customIntro
+		}
 	}
 
-	// User has no posts or comments
-	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-		"error": "User not found or has no activity",
+	return c.JSON(fiber.Map{
+		"ID":       logtoUser.ID,
+		"Username": logtoUser.Username,
+		"Avatar":   logtoUser.Avatar,
+		"Intro":    intro,
+		"Role":     "user", // Default role for public view
 	})
 }
 
