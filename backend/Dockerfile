@@ -1,0 +1,22 @@
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN go build -o main .
+
+FROM alpine:latest
+
+WORKDIR /root/
+
+COPY --from=builder /app/main .
+
+# Create uploads directory
+RUN mkdir -p /root/public/uploads && chmod 755 /root/public/uploads
+
+EXPOSE 3000
+
+CMD ["./main"]

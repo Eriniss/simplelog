@@ -28,6 +28,8 @@ func HandleLogin(c fiber.Ctx) error {
 	appID := os.Getenv("LOGTO_APP_ID")
 	redirectURI := os.Getenv("LOGTO_REDIRECT_URI")
 
+	log.Printf("DEBUG: endpoint=%s, appID=%s, redirectURI=%s", endpoint, appID, redirectURI)
+
 	authURL := fmt.Sprintf("%soidc/auth?client_id=%s&redirect_uri=%s&response_type=code&scope=openid+profile+email+roles+custom_data",
 		endpoint, appID, url.QueryEscape(redirectURI))
 
