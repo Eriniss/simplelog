@@ -1,32 +1,48 @@
 version: '3.8'
 
 services:
-  simplelog:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: simplelog
-    restart: always
+  backend:
+    build: ./backend
     ports:
       - "3000:3000"
+    environment:
+      - PORT=3000
+      - DB_HOST=db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=simplelog
+      - DB_PORT=5432
+      - LOGTO_ENDPOINT=${LOGTO_ENDPOINT}
+      - LOGTO_APP_ID=${LOGTO_APP_ID}
+      - LOGTO_APP_SECRET=${LOGTO_APP_SECRET}
+      - LOGTO_MANAGEMENT_APP_ID=${LOGTO_MANAGEMENT_APP_ID}
+      - LOGTO_MANAGEMENT_APP_SECRET=${LOGTO_MANAGEMENT_APP_SECRET}
+      - LOGTO_REDIRECT_URI=${LOGTO_REDIRECT_URI}
+      - LOGTO_POST_LOGOUT_REDIRECT_URI=${LOGTO_POST_LOGOUT_REDIRECT_URI}
     volumes:
-      # Persist SQLite database and uploaded images
-      - simplelog_data:/root/data
       - simplelog_uploads:/root/public/uploads
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/posts"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    depends_on:
+      - db
+    restart: always
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: always
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=simplelog
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
 
 volumes:
-  simplelog_data:
-    driver: local
+  postgres_data:
   simplelog_uploads:
-    driver: local

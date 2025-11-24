@@ -10,7 +10,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/logger"
-	"github.com/gofiber/fiber/v3/middleware/static"
 	"github.com/joho/godotenv"
 )
 
@@ -39,12 +38,9 @@ func main() {
 	// Middleware
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"},
 		AllowCredentials: true,
 	}))
-
-	// Serve static files
-	app.Use("/", static.New("./public"))
 
 	// Auth routes (no auth required)
 	app.Get("/auth/login", handlers.HandleLogin)
@@ -80,6 +76,12 @@ func main() {
 	// Image upload routes
 	api.Post("/upload/image", handlers.UploadImage)
 	api.Delete("/upload/image/:filename", handlers.DeleteImage)
+
+	// Serve uploaded images as static files
+	app.Get("/uploads/:filename", func(c fiber.Ctx) error {
+		filename := c.Params("filename")
+		return c.SendFile("./public/uploads/" + filename)
+	})
 
 	// Start server
 	port := os.Getenv("PORT")
