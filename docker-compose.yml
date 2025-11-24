@@ -17,8 +17,8 @@ services:
       - LOGTO_APP_SECRET=${LOGTO_APP_SECRET}
       - LOGTO_MANAGEMENT_APP_ID=${LOGTO_MANAGEMENT_APP_ID}
       - LOGTO_MANAGEMENT_APP_SECRET=${LOGTO_MANAGEMENT_APP_SECRET}
-      - LOGTO_REDIRECT_URI=http://localhost:8080/oidc/callback
-      - LOGTO_POST_LOGOUT_REDIRECT_URI=http://localhost:8080/
+      - LOGTO_REDIRECT_URI=${LOGTO_REDIRECT_URI}
+      - LOGTO_POST_LOGOUT_REDIRECT_URI=${LOGTO_POST_LOGOUT_REDIRECT_URI}
     volumes:
       - simplelog_uploads:/root/public/uploads
     depends_on:
