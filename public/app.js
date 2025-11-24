@@ -142,7 +142,7 @@ function setupEventListeners() {
         });
     }
 
-    // Shift+Enter to submit
+    // Cmd+S or Ctrl+S to submit
     const postContent = document.getElementById('post-content');
     if (postContent) {
         // Real-time preview
@@ -153,16 +153,12 @@ function setupEventListeners() {
             }
         });
 
-        postContent.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && e.shiftKey) {
-                e.preventDefault();
-                const form = document.getElementById('post-form');
-                if (form) {
-                    if (typeof form.requestSubmit === 'function') {
-                        form.requestSubmit();
-                    } else {
-                        form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-                    }
+        postContent.addEventListener('keydown', async (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault(); // Prevent browser save
+                const submitBtn = document.getElementById('submit-post-btn');
+                if (submitBtn) {
+                    submitBtn.click();
                 }
             }
         });
@@ -502,6 +498,9 @@ async function toggleTask(postId, taskIndex, isChecked) {
         });
 
         // 3. Save updated content
+        // IMPORTANT: Must include existing tags and secret status, otherwise they might be cleared/reset
+        const tagNames = post.Tags ? post.Tags.map(t => t.Name) : [];
+
         const updateResponse = await fetch(`/api/posts/${postId}`, {
             method: 'PUT',
             headers: {
@@ -510,7 +509,9 @@ async function toggleTask(postId, taskIndex, isChecked) {
             credentials: 'include',
             body: JSON.stringify({
                 title: post.Title,
-                content: content
+                content: content,
+                tags: tagNames,
+                isSecret: post.IsSecret
             })
         });
 
@@ -562,6 +563,24 @@ async function loadPostForEdit(postId) {
         document.getElementById('post-id').value = post.ID;
         document.getElementById('post-title').value = post.Title;
         document.getElementById('post-content').value = post.Content;
+
+        // Populate Tags
+        if (post.Tags && post.Tags.length > 0) {
+            const tags = post.Tags.map(tag => tag.Name);
+            if (window.setCurrentTags) {
+                window.setCurrentTags(tags);
+            }
+        } else {
+            if (window.setCurrentTags) {
+                window.setCurrentTags([]);
+            }
+        }
+
+        // Populate Secret Status
+        const secretCheckbox = document.getElementById('post-secret');
+        if (secretCheckbox) {
+            secretCheckbox.checked = post.IsSecret;
+        }
     } catch (error) {
         console.error('Error loading post:', error);
         alert('글을 불러오는데 실패했습니다.');
@@ -744,13 +763,23 @@ function getPreview(content, maxLength = 30) {
 function renderMarkdown(content) {
     let html = escapeHtml(content);
 
-    // Images - Process BEFORE escaping to preserve URLs
+    // 1. Extract Code Blocks to protect them from newline replacement
+    const codeBlocks = [];
+    html = html.replace(/```([\s\S]*?)```/g, (match, code) => {
+        const placeholder = `__CODE_BLOCK_${codeBlocks.length}__`;
+        codeBlocks.push(`<pre><code>${code}</code></pre>`);
+        return placeholder;
+    });
+
+    // 2. Process Images - Process BEFORE escaping to preserve URLs
     // Need to unescape the image markdown first
     const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
     const images = [];
     let match;
 
-    // Extract images before other processing
+    // Extract images from original content (since html is escaped)
+    // Note: We need to match against the *original* content to get URLs,
+    // but replace in the *escaped* html.
     while ((match = imageRegex.exec(content)) !== null) {
         images.push({
             full: match[0],
@@ -766,55 +795,43 @@ function renderMarkdown(content) {
         html = html.replace(escapedMarkdown, imageTag);
     });
 
-    // Code Blocks (```code```)
-    // We need to handle this before other block elements to avoid interference
-    // Note: escapeHtml has already run, so we look for escaped backticks if any, but usually backticks are safe.
-    // However, since we ran escapeHtml first, newlines are still \n (until replaced later).
-    // We need to be careful about the sequence.
-
-    // Let's handle code blocks. The content is already escaped, so < becomes &lt;, etc.
-    // We need to match ```...```
-    html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-
-    // Inline Code (`code`)
+    // 3. Inline Code
     html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
 
-    // Checkboxes (- [ ] or - [x])
-    // Must be done before generic lists to avoid conflict
+    // 4. Checkboxes
     html = html.replace(/^- \[(x| )\] (.+)$/gm, (match, state, text) => {
         const checked = state === 'x' ? 'checked' : '';
         return `<li class="task-list-item"><input type="checkbox" class="task-checkbox" ${checked}> ${text}</li>`;
     });
 
-    // Divider (---)
-    // Match --- on a new line
+    // 5. Divider
     html = html.replace(/^\s*---\s*$/gm, '<hr>');
 
-    // Headers
+    // 6. Headers
     html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
     html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
     html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
 
-    // Bold
+    // 7. Bold
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
-    // Lists
+    // 8. Lists
     html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
     html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
 
-    // Line breaks - Only replace newlines that are NOT inside pre tags
-    // This is a simple regex approach; for robust markdown, a parser library is better.
-    // But for this simple implementation, we can just replace \n with <br> globally, 
-    // EXCEPT we might break the pre formatting if we are not careful.
-    // However, <pre> preserves whitespace, so <br> inside might be visible or double line break.
-    // Let's try to be safe: split by pre tags? 
-    // Or just replace \n with <br> generally, but CSS for pre usually handles newlines.
-    // Actually, if we put <br> inside <pre>, it renders as a newline.
-    // But we want to avoid replacing the \n inside the code block logic above if possible?
-    // The current implementation replaces all \n with <br>.
-    // Let's stick to the requested features first.
+    // 9. Strip newlines around block elements to avoid double spacing
+    // Remove newlines after block closing tags
+    html = html.replace(/(<\/(h1|h2|h3|ul|ol|li|hr|blockquote)>)\s*\n/g, '$1');
+    // Remove newlines before block opening tags
+    html = html.replace(/\n\s*(<(h1|h2|h3|ul|ol|li|hr|blockquote))/g, '$1');
 
+    // 10. Convert remaining newlines to <br>
     html = html.replace(/\n/g, '<br>');
+
+    // 11. Restore Code Blocks
+    codeBlocks.forEach((code, index) => {
+        html = html.replace(`__CODE_BLOCK_${index}__`, code);
+    });
 
     return html;
 }
