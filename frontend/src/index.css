@@ -370,6 +370,7 @@ nav {
 .post-content {
   margin-top: 2rem;
   line-height: 1.8;
+  white-space: pre-wrap;
 }
 
 .post-content li {
@@ -445,6 +446,9 @@ nav {
   font-family: monospace;
   line-height: 1.6;
   transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .editor-container textarea.drag-over {
@@ -462,6 +466,7 @@ nav {
   padding: 1rem;
   background-color: #fff;
   margin-top: 0;
+  white-space: pre-wrap;
 }
 
 /* Wide mode for editor */
@@ -787,11 +792,12 @@ nav {
   display: flex;
   gap: 0.5rem;
   align-items: center;
+  flex-wrap: nowrap;
 }
 
 .comment-input {
   width: 100%;
-  padding: 1.2rem 0.9rem;
+  padding: 0.8rem 0.9rem;
   border: 1px solid #dde1e6;
   border-radius: 4px;
   font-family: inherit;

@@ -6,6 +6,18 @@ const client = axios.create({
     withCredentials: true,
 });
 
+// Add response interceptor for 401 errors
+client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            // Redirect to login page
+            window.location.href = '/auth/login';
+        }
+        return Promise.reject(error);
+    }
+);
+
 export const getMe = () => client.get<User>('/me');
 export const getPosts = (offset: number, limit: number | 'all', search?: string, type?: string) =>
     client.get<{ posts: Post[], total: number }>(`/posts`, { params: { offset, limit, search, type } });

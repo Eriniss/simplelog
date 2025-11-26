@@ -128,7 +128,7 @@ const CommentSection = ({ postId }: CommentSectionProps) => {
                                 placeholder="답글을 작성하세요..."
                                 className="comment-input"
                             />
-                            <button onClick={() => handleReply(comment.ID)} className="btn btn-primary">등록</button>
+                            <button onClick={() => handleReply(comment.ID)} className="btn btn-primary" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>등록</button>
                         </div>
                     </div>
                 )}

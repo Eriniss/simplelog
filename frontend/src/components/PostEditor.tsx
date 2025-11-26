@@ -15,6 +15,7 @@ const PostEditor = () => {
     const [tagInput, setTagInput] = useState('');
     const [isSecret, setIsSecret] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
@@ -155,9 +156,16 @@ const PostEditor = () => {
         }
     };
 
+    const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+        setNotification({ message, type });
+        setTimeout(() => {
+            setNotification(null);
+        }, 3000);
+    };
+
     const handleIntermediateSave = async () => {
         if (!title.trim() || !content.trim()) {
-            alert('제목과 내용을 입력해주세요.');
+            showNotification('제목과 내용을 입력해주세요.', 'error');
             return;
         }
 
@@ -166,18 +174,18 @@ const PostEditor = () => {
             const data = { title, content, tags, isSecret };
             if (id) {
                 await updatePost(parseInt(id), data);
-                alert('중간 저장되었습니다.');
+                showNotification('중간 저장되었습니다.');
             } else {
                 const res = await createPost(data);
                 // Update URL without reloading page if possible, or just navigate to edit page
                 // navigate(`/edit/${res.data.ID}`, { replace: true });
                 // Since we are in write mode, switching to edit mode is better
                 navigate(`/edit/${res.data.ID}`, { replace: true });
-                alert('중간 저장되었습니다.');
+                showNotification('중간 저장되었습니다.');
             }
         } catch (error) {
             console.error('Failed to save post', error);
-            alert('저장에 실패했습니다.');
+            showNotification('저장에 실패했습니다.', 'error');
         } finally {
             setLoading(false);
         }
@@ -256,7 +264,7 @@ const PostEditor = () => {
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         placeholder="내용을 입력하세요 (Markdown 지원, 이미지 드래그 앤 드롭/붙여넣기 가능)"
-                        style={{ padding: '1rem', borderRadius: '10px' }}
+                        style={{ padding: '1rem' }}
                     />
                     <div className="editor-preview post-content">
                         <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
@@ -278,7 +286,26 @@ const PostEditor = () => {
                     </button>
                 </div>
             </form>
-        </div>
+
+            {
+                notification && (
+                    <div style={{
+                        position: 'fixed',
+                        bottom: '20px',
+                        right: '20px',
+                        backgroundColor: notification.type === 'success' ? '#5bd15b' : '#dc3545',
+                        color: 'white',
+                        padding: '1rem 2rem',
+                        borderRadius: '4px',
+                        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+                        zIndex: 1000,
+                        animation: 'fadeIn 0.3s ease-in-out'
+                    }}>
+                        {notification.message}
+                    </div>
+                )
+            }
+        </div >
     );
 };
 
