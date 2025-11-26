@@ -77,13 +77,14 @@ const Profile = () => {
                         </div>
                     </div>
 
+                    <div className="profile-actions" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'center', gap: '16px' }}>
+                        <Link to="/edit-profile" className="btn btn-primary">프로필 수정</Link>
+                        <Link to="/" className="btn btn-secondary">홈으로 돌아가기</Link>
+                    </div>
                 </div>
             </div>
 
-            <div className="profile-actions" style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
-                <Link to="/edit-profile" className="btn btn-primary">프로필 수정</Link>
-                <Link to="/" className="btn btn-secondary">홈으로 돌아가기</Link>
-            </div>
+
         </div>
     );
 };

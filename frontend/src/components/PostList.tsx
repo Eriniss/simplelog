@@ -87,8 +87,20 @@ const PostList = () => {
                     </form>
                 </div>
 
-                <div id="new-post-btn-container" style={{ textAlign: 'left', marginBottom: '1rem' }}>
+                <div id="new-post-btn-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                     <Link to="/write" className="btn btn-primary">새 글 작성</Link>
+                    <select
+                        id="page-size-select"
+                        className="page-size-selector"
+                        value={limitParam}
+                        onChange={handleLimitChange}
+                    >
+                        <option value="10">10개씩 보기</option>
+                        <option value="25">25개씩 보기</option>
+                        <option value="50">50개씩 보기</option>
+                        <option value="100">100개씩 보기</option>
+                        <option value="all">전체 보기</option>
+                    </select>
                 </div>
 
                 <div id="posts-container">
@@ -150,20 +162,6 @@ const PostList = () => {
                         >
                             다음
                         </button>
-                    </div>
-                    <div style={{ position: 'absolute', right: 0 }}>
-                        <select
-                            id="page-size-select"
-                            className="page-size-selector"
-                            value={limitParam}
-                            onChange={handleLimitChange}
-                        >
-                            <option value="10">10개씩 보기</option>
-                            <option value="25">25개씩 보기</option>
-                            <option value="50">50개씩 보기</option>
-                            <option value="100">100개씩 보기</option>
-                            <option value="all">전체 보기</option>
-                        </select>
                     </div>
                 </div>
             </div>

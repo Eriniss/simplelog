@@ -141,6 +141,14 @@ const PostDetail = () => {
                         components={{
                             input: ({ node, ...props }) => (
                                 <input {...props} disabled={false} readOnly />
+                            ),
+                            img: ({ node, ...props }) => (
+                                <img
+                                    {...props}
+                                    style={{ cursor: 'pointer', maxWidth: '100%' }}
+                                    onClick={() => window.open(props.src, '_blank')}
+                                    title="클릭하여 원본 보기"
+                                />
                             )
                         }}
                     >

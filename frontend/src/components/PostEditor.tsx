@@ -155,11 +155,39 @@ const PostEditor = () => {
         }
     };
 
+    const handleIntermediateSave = async () => {
+        if (!title.trim() || !content.trim()) {
+            alert('제목과 내용을 입력해주세요.');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const data = { title, content, tags, isSecret };
+            if (id) {
+                await updatePost(parseInt(id), data);
+                alert('중간 저장되었습니다.');
+            } else {
+                const res = await createPost(data);
+                // Update URL without reloading page if possible, or just navigate to edit page
+                // navigate(`/edit/${res.data.ID}`, { replace: true });
+                // Since we are in write mode, switching to edit mode is better
+                navigate(`/edit/${res.data.ID}`, { replace: true });
+                alert('중간 저장되었습니다.');
+            }
+        } catch (error) {
+            console.error('Failed to save post', error);
+            alert('저장에 실패했습니다.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 's') {
                 e.preventDefault();
-                handleSubmit(e as any);
+                handleIntermediateSave();
             }
         };
 
@@ -167,7 +195,7 @@ const PostEditor = () => {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [title, content, tags, isSecret]); // Dependencies needed for handleSubmit closure
+    }, [title, content, tags, isSecret, id]); // Dependencies needed for handleIntermediateSave closure
 
     // ... existing code ...
 
@@ -242,6 +270,9 @@ const PostEditor = () => {
 
                 <div className="form-actions" style={{ marginTop: '1rem', justifyContent: 'flex-end' }}>
                     <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary">취소</button>
+                    <button type="button" onClick={handleIntermediateSave} className="btn btn-secondary" disabled={loading} style={{ marginRight: '0.5rem' }}>
+                        중간 저장
+                    </button>
                     <button type="submit" className="btn btn-primary" disabled={loading}>
                         {loading ? '저장 중...' : (id ? '수정 완료' : '작성 완료')}
                     </button>
