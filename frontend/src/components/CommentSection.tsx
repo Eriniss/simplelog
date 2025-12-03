@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Comment, User } from '../types';
 import { getComments, createComment, updateComment, deleteComment, getMe } from '../api';
 import { formatDate } from '../utils';
+import { getAvatarUrl } from '../utils/avatar';
 
 interface CommentSectionProps {
     postId: number;
@@ -83,7 +84,11 @@ const CommentSection = ({ postId }: CommentSectionProps) => {
             <div key={comment.ID} className={`comment-item ${isReply ? 'reply-item' : ''}`} style={isReply ? { marginLeft: '2rem', marginTop: '0.5rem' } : { marginBottom: '1rem' }}>
                 <div className="comment-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        {comment.AuthorAvatar && <img src={comment.AuthorAvatar} alt="Profile" style={{ width: '24px', height: '24px', borderRadius: '50%' }} />}
+                        <img
+                            src={getAvatarUrl({ ID: comment.AuthorID, Avatar: comment.AuthorAvatar } as User)}
+                            alt="Profile"
+                            style={{ width: '24px', height: '24px', borderRadius: '50%' }}
+                        />
                         <span style={{ fontWeight: 600 }}>{comment.AuthorUsername || '익명'}</span>
                         <span style={{ color: '#666', fontSize: '0.85rem' }}>{formatDate(comment.CreatedAt)}</span>
                     </div>

@@ -42,3 +42,14 @@ type Comment struct {
 	UpdatedAt      time.Time      `json:"UpdatedAt"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
 }
+
+type Template struct {
+	ID        uint           `gorm:"primaryKey" json:"ID"`
+	Name      string         `gorm:"not null" json:"Name"`
+	Content   string         `gorm:"type:text;not null" json:"Content"`
+	AuthorID  string         `gorm:"not null;index" json:"AuthorID"` // Logto user ID (sub claim)
+	IsPublic  bool           `gorm:"default:false" json:"IsPublic"`
+	CreatedAt time.Time      `json:"CreatedAt"`
+	UpdatedAt time.Time      `json:"UpdatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}

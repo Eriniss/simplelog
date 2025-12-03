@@ -73,6 +73,13 @@ func main() {
 	api.Put("/comments/:id", handlers.UpdateComment)
 	api.Delete("/comments/:id", handlers.DeleteComment)
 
+	// Template routes
+	api.Get("/templates", handlers.GetTemplates)
+	api.Get("/templates/:id", handlers.GetTemplate)
+	api.Post("/templates", handlers.CreateTemplate)
+	api.Put("/templates/:id", handlers.UpdateTemplate)
+	api.Delete("/templates/:id", handlers.DeleteTemplate)
+
 	// Image upload routes
 	api.Post("/upload/image", handlers.UploadImage)
 	api.Delete("/upload/image/:filename", handlers.DeleteImage)

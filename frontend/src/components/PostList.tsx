@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import type { Post } from '../types';
+import type { Post, User } from '../types';
 import { getPosts } from '../api';
 import { formatDate } from '../utils';
 import { Link, useSearchParams } from 'react-router-dom';
+import { getAvatarUrl } from '../utils/avatar';
 
 const PostList = () => {
     const [posts, setPosts] = useState<Post[]>([]);
@@ -115,7 +116,11 @@ const PostList = () => {
                                     </h3>
                                     <div className="post-meta">
                                         <div className="post-card-author">
-                                            {post.AuthorAvatar && <img src={post.AuthorAvatar} alt="프로필" className="post-card-avatar" />}
+                                            <img
+                                                src={getAvatarUrl({ ID: post.AuthorID, Avatar: post.AuthorAvatar } as User)}
+                                                alt="프로필"
+                                                className="post-card-avatar"
+                                            />
                                             <span className="post-card-author-name">{post.AuthorUsername || '익명'}</span>
                                         </div>
                                         <span>•</span>

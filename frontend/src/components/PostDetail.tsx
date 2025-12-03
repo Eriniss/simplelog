@@ -8,6 +8,7 @@ import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
 import 'highlight.js/styles/github-dark.css';
 import CommentSection from './CommentSection';
+import { getAvatarUrl } from '../utils/avatar';
 
 const PostDetail = () => {
     const { id } = useParams<{ id: string }>();
@@ -116,7 +117,11 @@ const PostDetail = () => {
 
                 <div className="post-meta">
                     <div id="detail-author">
-                        {post.AuthorAvatar && <img src={post.AuthorAvatar} alt="프로필" className="post-author-avatar" />}
+                        <img
+                            src={getAvatarUrl({ ID: post.AuthorID, Avatar: post.AuthorAvatar } as User)}
+                            alt="프로필"
+                            className="post-author-avatar"
+                        />
                         <span className="post-author-name">{post.AuthorUsername || '익명'}</span>
                     </div>
                     <div id="detail-date">

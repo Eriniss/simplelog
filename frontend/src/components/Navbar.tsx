@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import { getMe } from '../api';
 import type { User } from '../types';
 import { Link } from 'react-router-dom';
+import { getAvatarUrl } from '../utils/avatar';
+import ThemeToggle from './ThemeToggle';
 
 const Navbar = () => {
     const [user, setUser] = useState<User | null>(null);
@@ -58,17 +60,18 @@ const Navbar = () => {
     };
 
     return (
-        <header style={{ position: 'sticky', top: 0, zIndex: 1000, backgroundColor: 'white', borderBottom: '2px solid #5bd15b' }}>
+        <header>
             <div className="container">
-                <a href="/" className="logo" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-                    <img src={logoUrl} alt="SimpleLog" style={{ height: '40px', marginRight: '10px', verticalAlign: 'middle' }} />
-                    <span style={{ color: '#5bd15b', fontWeight: 'bold', fontSize: '1.5rem' }}>SimpleLog</span>
+                <a href="/" className="logo">
+                    <img src={logoUrl} alt="SimpleLog" />
+                    <span>SimpleLog</span>
                 </a>
                 <nav>
+                    <ThemeToggle />
                     {user ? (
                         <div className="user-info" ref={dropdownRef}>
                             <div className={`user-menu-trigger ${dropdownOpen ? 'active' : ''}`} onClick={toggleDropdown}>
-                                {user.Avatar && <img src={user.Avatar} alt="Profile" className="user-avatar" />}
+                                <img src={getAvatarUrl(user)} alt="Profile" className="user-avatar" />
                                 <span>{user.Username || user.ID}</span>
                                 <span className="badge">{user.Role || 'user'}</span>
                                 <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">

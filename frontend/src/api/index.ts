@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Post, Comment, User } from '../types';
+import type { Post, Comment, User, Template } from '../types';
 
 const client = axios.create({
     baseURL: '/api',
@@ -40,3 +40,9 @@ export const uploadImage = (file: File) => {
 
 export const updateProfile = (data: { username?: string; avatar?: string; intro?: string }) =>
     client.patch('/profile', data);
+
+export const getTemplates = () => client.get<Template[]>('/templates');
+export const getTemplate = (id: number) => client.get<Template>(`/templates/${id}`);
+export const createTemplate = (data: { name: string; content: string; isPublic?: boolean }) => client.post<Template>('/templates', data);
+export const updateTemplate = (id: number, data: { name: string; content: string; isPublic?: boolean }) => client.put<Template>(`/templates/${id}`, data);
+export const deleteTemplate = (id: number) => client.delete(`/templates/${id}`);

@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getPost, createPost, updatePost, uploadImage } from '../api';
+import { getPost, createPost, updatePost, uploadImage, createTemplate } from '../api';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
 import 'highlight.js/styles/github-dark.css';
+import TemplateSelector from './TemplateSelector';
+import TemplateManager from './TemplateManager';
 
 const PostEditor = () => {
     const { id } = useParams<{ id: string }>();
@@ -16,6 +18,7 @@ const PostEditor = () => {
     const [isSecret, setIsSecret] = useState(false);
     const [loading, setLoading] = useState(false);
     const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+    const [isTemplateManagerOpen, setIsTemplateManagerOpen] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
@@ -131,6 +134,56 @@ const PostEditor = () => {
         e.currentTarget.classList.remove('drag-over');
     };
 
+    const wrapSelection = (before: string, after: string) => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = content.substring(start, end);
+
+        // 선택된 텍스트가 없으면 기본 텍스트
+        const textToWrap = selectedText || 'text';
+        const newText = before + textToWrap + after;
+
+        const newContent =
+            content.substring(0, start) +
+            newText +
+            content.substring(end);
+
+        setContent(newContent);
+
+        // 커서 위치 재설정 (wrapped text 선택)
+        setTimeout(() => {
+            textarea.focus();
+            textarea.setSelectionRange(
+                start + before.length,
+                start + before.length + textToWrap.length
+            );
+        }, 0);
+    };
+
+    const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const isCtrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+
+        if (isCtrlOrCmd) {
+            // Ctrl/Cmd + B: Bold
+            if (e.key === 'b' || e.key === 'B') {
+                e.preventDefault();
+                wrapSelection('**', '**');
+                return;
+            }
+
+            // Ctrl/Cmd + `: Code
+            if (e.key === '`') {
+                e.preventDefault();
+                wrapSelection('`', '`');
+                return;
+            }
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title.trim() || !content.trim()) {
@@ -205,7 +258,40 @@ const PostEditor = () => {
         };
     }, [title, content, tags, isSecret, id]); // Dependencies needed for handleIntermediateSave closure
 
-    // ... existing code ...
+    const handleTemplateSelect = (templateContent: string) => {
+        if (content && !confirm('현재 작성 중인 내용이 템플릿으로 교체됩니다. 계속하시겠습니까?')) {
+            return;
+        }
+        setContent(templateContent);
+        showNotification('템플릿을 불러왔습니다.');
+    };
+
+    const handleSaveAsTemplate = async () => {
+        if (!content.trim()) {
+            showNotification('템플릿으로 저장할 내용을 입력해주세요.', 'error');
+            return;
+        }
+
+        const templateName = prompt('템플릿 이름을 입력하세요:');
+        if (!templateName || !templateName.trim()) {
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await createTemplate({
+                name: templateName.trim(),
+                content: content,
+                isPublic: false,
+            });
+            showNotification('템플릿으로 저장되었습니다.');
+        } catch (error) {
+            console.error('Failed to save template:', error);
+            showNotification('템플릿 저장에 실패했습니다.', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="container wide-mode">
@@ -223,7 +309,7 @@ const PostEditor = () => {
                 </div>
 
                 <div className="form-group">
-                    <div className="tag-input-container" style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', backgroundColor: 'white' }}>
+                    <div className="tag-input-container" style={{ border: '1px solid var(--border-color)', borderRadius: '4px', padding: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', backgroundColor: 'var(--input-bg)' }}>
                         <div className="tag-list" style={{ display: 'contents' }}>
                             {tags.map(tag => (
                                 <span key={tag} className="tag-badge">
@@ -238,7 +324,7 @@ const PostEditor = () => {
                             onChange={(e) => setTagInput(e.target.value)}
                             onKeyDown={handleTagKeyDown}
                             placeholder="태그를 입력하고 Enter (쉼표로 구분)"
-                            style={{ border: 'none', outline: 'none', flex: 1, padding: '0' }}
+                            style={{ border: 'none', outline: 'none', flex: 1, padding: '0', backgroundColor: 'transparent', color: 'var(--text-color)' }}
                         />
                     </div>
                 </div>
@@ -263,8 +349,8 @@ const PostEditor = () => {
                         onDrop={handleDrop}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
+                        onKeyDown={handleTextareaKeyDown}
                         placeholder="내용을 입력하세요 (Markdown 지원, 이미지 드래그 앤 드롭/붙여넣기 가능)"
-                        style={{ padding: '1rem' }}
                     />
                     <div className="editor-preview post-content">
                         <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
@@ -274,16 +360,34 @@ const PostEditor = () => {
                 </div>
                 <div className="editor-help">
                     * 이미지를 드래그 앤 드롭하거나 붙여넣기(Ctrl+V)하면 자동으로 업로드됩니다.
+                    <br />
+                    * Ctrl/Cmd + B: Bold | Ctrl/Cmd + `: Code | Ctrl/Cmd + S: 중간 저장
                 </div>
 
-                <div className="form-actions" style={{ marginTop: '1rem', justifyContent: 'flex-end' }}>
-                    <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary">취소</button>
-                    <button type="button" onClick={handleIntermediateSave} className="btn btn-secondary" disabled={loading} style={{ marginRight: '0.5rem' }}>
-                        중간 저장
-                    </button>
-                    <button type="submit" className="btn btn-primary" disabled={loading}>
-                        {loading ? '저장 중...' : (id ? '수정 완료' : '작성 완료')}
-                    </button>
+                <div className="form-actions" style={{ marginTop: '1rem', justifyContent: 'space-between', display: 'flex' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <TemplateSelector
+                            onSelect={handleTemplateSelect}
+                            onManageClick={() => setIsTemplateManagerOpen(true)}
+                        />
+                        <button
+                            type="button"
+                            onClick={handleSaveAsTemplate}
+                            className="btn btn-secondary"
+                            disabled={loading}
+                        >
+                            템플릿으로 저장
+                        </button>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary">취소</button>
+                        <button type="button" onClick={handleIntermediateSave} className="btn btn-secondary" disabled={loading}>
+                            중간 저장
+                        </button>
+                        <button type="submit" className="btn btn-primary" disabled={loading}>
+                            {loading ? '저장 중...' : (id ? '수정 완료' : '작성 완료')}
+                        </button>
+                    </div>
                 </div>
             </form>
 
@@ -305,6 +409,11 @@ const PostEditor = () => {
                     </div>
                 )
             }
+
+            <TemplateManager
+                isOpen={isTemplateManagerOpen}
+                onClose={() => setIsTemplateManagerOpen(false)}
+            />
         </div >
     );
 };

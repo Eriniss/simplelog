@@ -38,3 +38,13 @@ export interface Comment {
     Replies?: Comment[];
     CreatedAt: string;
 }
+
+export interface Template {
+    ID: number;
+    Name: string;
+    Content: string;
+    AuthorID: string;
+    IsPublic: boolean;
+    CreatedAt: string;
+    UpdatedAt: string;
+}
