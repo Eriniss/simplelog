@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { User } from '../types';
-import { getMe } from '../api';
+import { getMe, getUserTags, type UserTag } from '../api';
 
 const Profile = () => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+    const [tags, setTags] = useState<UserTag[]>([]);
+    const [tagsExpanded, setTagsExpanded] = useState(false);
 
     useEffect(() => {
         loadCurrentUser();
@@ -15,6 +17,14 @@ const Profile = () => {
         try {
             const res = await getMe();
             setUser(res.data);
+
+            // Load user tags
+            try {
+                const tagsRes = await getUserTags(res.data.ID);
+                setTags(tagsRes.data);
+            } catch (error) {
+                console.error('Failed to load user tags', error);
+            }
         } catch (error) {
             console.error('Failed to load profile', error);
             // Redirect to login if needed, or show error
@@ -76,6 +86,40 @@ const Profile = () => {
                             </div>
                         </div>
                     </div>
+
+                    {tags.length > 0 && (
+                        <div className="profile-section">
+                            <h3>내 태그</h3>
+                            <div className="profile-tags-container">
+                                {(tagsExpanded ? tags : tags.slice(0, 5)).map((tag, index) => (
+                                    <Link
+                                        key={index}
+                                        to={`/?search=${encodeURIComponent(tag.name)}&type=tag`}
+                                        className="profile-tag-badge"
+                                    >
+                                        #{tag.name}
+                                        <span className="profile-tag-count">{tag.count}</span>
+                                    </Link>
+                                ))}
+                                {!tagsExpanded && tags.length > 5 && (
+                                    <button
+                                        className="profile-tag-more"
+                                        onClick={() => setTagsExpanded(true)}
+                                    >
+                                        +{tags.length - 5}
+                                    </button>
+                                )}
+                                {tagsExpanded && tags.length > 5 && (
+                                    <button
+                                        className="profile-tag-less"
+                                        onClick={() => setTagsExpanded(false)}
+                                    >
+                                        접기
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="profile-actions" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'center', gap: '16px' }}>
                         <Link to="/edit-profile" className="btn btn-primary">프로필 수정</Link>

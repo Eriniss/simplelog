@@ -60,6 +60,9 @@ func main() {
 	api.Get("/posts", handlers.GetPosts)
 	api.Get("/posts/:id", handlers.GetPost)
 
+	// User tags
+	api.Get("/users/:id/tags", handlers.GetUserTags)
+
 	// Write routes (all authenticated users can create posts)
 	api.Post("/posts", handlers.CreatePost)
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getPost, createPost, updatePost, uploadImage, createTemplate } from '../api';
 import ReactMarkdown from 'react-markdown';
@@ -216,7 +216,7 @@ const PostEditor = () => {
         }, 3000);
     };
 
-    const handleIntermediateSave = async () => {
+    const handleIntermediateSave = useCallback(async () => {
         if (!title.trim() || !content.trim()) {
             showNotification('제목과 내용을 입력해주세요.', 'error');
             return;
@@ -242,7 +242,7 @@ const PostEditor = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [title, content, tags, isSecret, id, navigate]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -256,7 +256,25 @@ const PostEditor = () => {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [title, content, tags, isSecret, id]); // Dependencies needed for handleIntermediateSave closure
+    }, [handleIntermediateSave]);
+
+    // Auto-save every 30 seconds
+    useEffect(() => {
+        // Only auto-save if there's content
+        if (!title.trim() && !content.trim()) {
+            return;
+        }
+
+        const autoSaveInterval = setInterval(() => {
+            if (title.trim() || content.trim()) {
+                handleIntermediateSave();
+            }
+        }, 30000); // 30 seconds
+
+        return () => {
+            clearInterval(autoSaveInterval);
+        };
+    }, [title, content, handleIntermediateSave]);
 
     const handleTemplateSelect = (templateContent: string) => {
         if (content && !confirm('현재 작성 중인 내용이 템플릿으로 교체됩니다. 계속하시겠습니까?')) {

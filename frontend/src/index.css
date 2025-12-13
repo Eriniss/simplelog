@@ -1325,3 +1325,193 @@ nav {
 .btn-danger:hover {
   background-color: #c82333;
 }
+
+/* Post Header with Dropdown */
+.post-header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.post-header-container h1 {
+  flex: 1;
+  margin: 0;
+}
+
+.post-actions-dropdown {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.post-actions-trigger {
+  background-color: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-color);
+  transition: all 0.2s;
+}
+
+.post-actions-trigger:hover {
+  background-color: var(--hover-bg);
+  border-color: var(--brand-color);
+}
+
+.post-actions-trigger svg {
+  opacity: 0.7;
+}
+
+.post-actions-trigger:hover svg {
+  opacity: 1;
+}
+
+.post-actions-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  min-width: 140px;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  z-index: 100;
+  animation: dropdownFadeIn 0.2s ease-out;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.post-actions-dropdown-menu .dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-size: 0.95rem;
+  color: var(--text-color);
+  text-decoration: none;
+}
+
+.post-actions-dropdown-menu .dropdown-item:hover {
+  background-color: var(--hover-bg);
+}
+
+.post-actions-dropdown-menu .dropdown-item.delete-item:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--danger-color);
+}
+
+/* Dark mode dropdown adjustments */
+.dark-mode .post-actions-dropdown-menu {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.dark-mode .post-actions-dropdown-menu .dropdown-item.delete-item:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+}
+
+/* Profile Tags */
+.profile-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.profile-tag-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-color);
+  text-decoration: none;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.profile-tag-badge:hover {
+  background-color: var(--hover-bg);
+  border-color: var(--brand-color);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.profile-tag-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 0.4rem;
+  background-color: var(--brand-color);
+  color: white;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.profile-tag-more,
+.profile-tag-less {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--brand-color);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.profile-tag-more:hover,
+.profile-tag-less:hover {
+  background-color: var(--brand-color);
+  border-color: var(--brand-color);
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* Dark mode tag adjustments */
+.dark-mode .profile-tag-badge {
+  background-color: #27272a;
+}
+
+.dark-mode .profile-tag-badge:hover {
+  background-color: #3f3f46;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode .profile-tag-more,
+.dark-mode .profile-tag-less {
+  background-color: #27272a;
+}

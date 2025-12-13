@@ -487,3 +487,38 @@ func UpdateProfile(c fiber.Ctx) error {
 		"message": "Profile updated successfully",
 	})
 }
+
+// GetUserTags returns all tags used by a specific user
+func GetUserTags(c fiber.Ctx) error {
+	userID := c.Params("id")
+	if userID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "User ID is required",
+		})
+	}
+
+	type TagInfo struct {
+		Name  string `json:"name"`
+		Count int64  `json:"count"`
+	}
+
+	var tags []TagInfo
+
+	// Get all tags used by this user with count
+	err := database.DB.Table("tags").
+		Select("tags.name, COUNT(post_tags.tag_id) as count").
+		Joins("INNER JOIN post_tags ON tags.id = post_tags.tag_id").
+		Joins("INNER JOIN posts ON post_tags.post_id = posts.id AND posts.deleted_at IS NULL").
+		Where("posts.author_id = ?", userID).
+		Group("tags.id, tags.name").
+		Order("count DESC, tags.name ASC").
+		Scan(&tags).Error
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get user tags",
+		})
+	}
+
+	return c.JSON(tags)
+}

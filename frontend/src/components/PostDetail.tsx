@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type { Post, User } from '../types';
 import { getPost, deletePost, getMe, updatePost } from '../api';
@@ -16,6 +16,8 @@ const PostDetail = () => {
     const [post, setPost] = useState<Post | null>(null);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (id) {
@@ -23,6 +25,20 @@ const PostDetail = () => {
         }
         getMe().then(res => setCurrentUser(res.data)).catch(() => setCurrentUser(null));
     }, [id]);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setDropdownOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     const loadPost = async (postId: number) => {
         try {
@@ -113,7 +129,44 @@ const PostDetail = () => {
     return (
         <div className="container">
             <div className="post-detail">
-                <h1>{post.Title} {post.IsSecret && <span className="secret-icon" title="비밀글">🔒</span>}</h1>
+                <div className="post-header-container">
+                    <h1>{post.Title} {post.IsSecret && <span className="secret-icon" title="비밀글">🔒</span>}</h1>
+                    {isAuthor && (
+                        <div className="post-actions-dropdown" ref={dropdownRef}>
+                            <button
+                                className="post-actions-trigger"
+                                onClick={() => setDropdownOpen(!dropdownOpen)}
+                                aria-label="게시글 옵션"
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <circle cx="12" cy="5" r="2"/>
+                                    <circle cx="12" cy="12" r="2"/>
+                                    <circle cx="12" cy="19" r="2"/>
+                                </svg>
+                            </button>
+                            {dropdownOpen && (
+                                <div className="post-actions-dropdown-menu">
+                                    <Link
+                                        to={`/edit/${post.ID}`}
+                                        className="dropdown-item"
+                                        onClick={() => setDropdownOpen(false)}
+                                    >
+                                        ✏️ 수정
+                                    </Link>
+                                    <button
+                                        onClick={() => {
+                                            setDropdownOpen(false);
+                                            handleDelete();
+                                        }}
+                                        className="dropdown-item delete-item"
+                                    >
+                                        🗑️ 삭제
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
 
                 <div className="post-meta">
                     <div id="detail-author">

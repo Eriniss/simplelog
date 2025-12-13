@@ -41,6 +41,13 @@ export const uploadImage = (file: File) => {
 export const updateProfile = (data: { username?: string; avatar?: string; intro?: string }) =>
     client.patch('/profile', data);
 
+export interface UserTag {
+    name: string;
+    count: number;
+}
+
+export const getUserTags = (userId: string) => client.get<UserTag[]>(`/users/${userId}/tags`);
+
 export const getTemplates = () => client.get<Template[]>('/templates');
 export const getTemplate = (id: number) => client.get<Template>(`/templates/${id}`);
 export const createTemplate = (data: { name: string; content: string; isPublic?: boolean }) => client.post<Template>('/templates', data);
