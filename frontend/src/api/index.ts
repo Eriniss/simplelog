@@ -22,6 +22,7 @@ export const getMe = () => client.get<User>('/me');
 export const getPosts = (offset: number, limit: number | 'all', search?: string, type?: string) =>
     client.get<{ posts: Post[], total: number }>(`/posts`, { params: { offset, limit, search, type } });
 export const getPost = (id: number) => client.get<Post>(`/posts/${id}`);
+export const getProjects = () => client.get<string[]>('/projects');
 export const createPost = (data: { title: string; content: string; tags: string[]; isSecret: boolean }) => client.post<Post>('/posts', data);
 export const updatePost = (id: number, data: { title: string; content: string; tags: string[]; isSecret: boolean }) => client.put<Post>(`/posts/${id}`, data);
 export const deletePost = (id: number) => client.delete(`/posts/${id}`);

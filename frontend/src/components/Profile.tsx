@@ -18,7 +18,7 @@ const Profile = () => {
             const res = await getMe();
             setUser(res.data);
 
-            // Load user tags
+            // Load user tags (first tag acts as project)
             try {
                 const tagsRes = await getUserTags(res.data.ID);
                 setTags(tagsRes.data);

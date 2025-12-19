@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import type { Post, User } from '../types';
-import { getPosts } from '../api';
+import { getPosts, getProjects } from '../api';
 import { formatDate } from '../utils';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getAvatarUrl } from '../utils/avatar';
 
 const PostList = () => {
     const [posts, setPosts] = useState<Post[]>([]);
+    const [projects, setProjects] = useState<string[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [searchParams, setSearchParams] = useSearchParams();
@@ -16,6 +17,11 @@ const PostList = () => {
     const limit = limitParam === 'all' ? 'all' : parseInt(limitParam);
     const search = searchParams.get('search') || '';
     const type = searchParams.get('type') || 'title';
+    const [searchType, setSearchType] = useState(type);
+
+    useEffect(() => {
+        setSearchType(type);
+    }, [type]);
 
     useEffect(() => {
         loadPosts();
@@ -32,6 +38,19 @@ const PostList = () => {
             console.error('Failed to load posts', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadProjects();
+    }, []);
+
+    const loadProjects = async () => {
+        try {
+            const res = await getProjects();
+            setProjects(res.data);
+        } catch (error) {
+            console.error('Failed to load projects', error);
         }
     };
 
@@ -74,17 +93,44 @@ const PostList = () => {
             <div id="posts-list">
                 <div className="search-container">
                     <form onSubmit={handleSearch} style={{ display: 'flex', width: '100%', gap: '0.5rem' }}>
-                        <select name="type" defaultValue={type} id="search-type">
+                        <select
+                            name="type"
+                            value={searchType}
+                            onChange={(e) => setSearchType(e.target.value)}
+                            id="search-type"
+                        >
                             <option value="title">제목</option>
+                            <option value="project">프로젝트</option>
                             <option value="tag">태그</option>
                         </select>
-                        <input
-                            type="text"
-                            name="search"
-                            defaultValue={search}
-                            id="search-input"
-                            placeholder="검색어를 입력하세요..."
-                        />
+                        {searchType === 'project' ? (
+                            <select
+                                name="search"
+                                value={search}
+                                id="search-input"
+                                onChange={(e) => {
+                                    setSearchParams({
+                                        page: '1',
+                                        limit: limitParam,
+                                        search: e.target.value,
+                                        type: 'project',
+                                    });
+                                }}
+                            >
+                                <option value="">프로젝트 선택</option>
+                                {projects.map(p => (
+                                    <option key={p} value={p}>{p}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <input
+                                type="text"
+                                name="search"
+                                defaultValue={search}
+                                id="search-input"
+                                placeholder="검색어를 입력하세요..."
+                            />
+                        )}
                     </form>
                 </div>
 
@@ -129,7 +175,7 @@ const PostList = () => {
                                     {post.Tags && post.Tags.length > 0 && (
                                         <div className="post-tags">
                                             {post.Tags.map(tag => (
-                                                <span key={tag.ID} className="post-tag">#{tag.Name}</span>
+                                                <span key={tag.ID} className={`post-tag ${tag.Name === 'np' ? 'tag-np' : ''}`}>#{tag.Name}</span>
                                             ))}
                                         </div>
                                     )}

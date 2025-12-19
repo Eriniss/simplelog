@@ -59,6 +59,7 @@ func main() {
 	// Public read routes (authenticated users can read all posts)
 	api.Get("/posts", handlers.GetPosts)
 	api.Get("/posts/:id", handlers.GetPost)
+	api.Get("/projects", handlers.GetProjects)
 
 	// User tags
 	api.Get("/users/:id/tags", handlers.GetUserTags)

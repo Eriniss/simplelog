@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import type { Post, User } from '../types';
 import { getPost, deletePost, getMe, updatePost } from '../api';
@@ -9,6 +9,32 @@ import remarkGfm from 'remark-gfm';
 import 'highlight.js/styles/github-dark.css';
 import CommentSection from './CommentSection';
 import { getAvatarUrl } from '../utils/avatar';
+import { useTocExtraction } from '../hooks/useTocExtraction';
+import TableOfContents from './TableOfContents';
+import ProjectNavigation from './ProjectNavigation';
+
+// Helper function to extract text content from React children
+const getTextContent = (children: React.ReactNode): string => {
+    if (typeof children === 'string') return children;
+    if (typeof children === 'number') return String(children);
+    if (Array.isArray(children)) return children.map(getTextContent).join('');
+    if (children && typeof children === 'object' && 'props' in children) {
+        const element = children as { props: { children?: React.ReactNode } };
+        return getTextContent(element.props.children);
+    }
+    return '';
+};
+
+// Helper function to generate heading ID
+const slugify = (children: React.ReactNode): string => {
+    const text = getTextContent(children);
+    return text
+        .toLowerCase()
+        .replace(/[^\w가-힣\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim();
+};
 
 const PostDetail = () => {
     const { id } = useParams<{ id: string }>();
@@ -18,6 +44,33 @@ const PostDetail = () => {
     const [loading, setLoading] = useState(true);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Memoize the ReactMarkdown components at the top level (before any returns)
+    const markdownComponents = useMemo(() => ({
+        h1: ({ node, children, ...props }: any) => (
+            <h1 id={slugify(children)} {...props}>{children}</h1>
+        ),
+        h2: ({ node, children, ...props }: any) => (
+            <h2 id={slugify(children)} {...props}>{children}</h2>
+        ),
+        h3: ({ node, children, ...props }: any) => (
+            <h3 id={slugify(children)} {...props}>{children}</h3>
+        ),
+        input: ({ node, ...props }: any) => (
+            <input {...props} disabled={false} readOnly />
+        ),
+        img: ({ node, ...props }: any) => (
+            <img
+                {...props}
+                style={{ cursor: 'pointer', maxWidth: '100%' }}
+                onClick={() => window.open(props.src, '_blank')}
+                title="클릭하여 원본 보기"
+            />
+        )
+    }), []);
+
+    // Extract TOC items (safe to call with empty string if post is null)
+    const tocItems = useTocExtraction(post?.Content || '');
 
     useEffect(() => {
         if (id) {
@@ -127,107 +180,103 @@ const PostDetail = () => {
     const isAuthor = currentUser && (currentUser.ID === post.AuthorID || currentUser.Role === 'admin');
 
     return (
-        <div className="container">
-            <div className="post-detail">
-                <div className="post-header-container">
-                    <h1>{post.Title} {post.IsSecret && <span className="secret-icon" title="비밀글">🔒</span>}</h1>
-                    {isAuthor && (
-                        <div className="post-actions-dropdown" ref={dropdownRef}>
-                            <button
-                                className="post-actions-trigger"
-                                onClick={() => setDropdownOpen(!dropdownOpen)}
-                                aria-label="게시글 옵션"
-                            >
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                    <circle cx="12" cy="5" r="2"/>
-                                    <circle cx="12" cy="12" r="2"/>
-                                    <circle cx="12" cy="19" r="2"/>
-                                </svg>
-                            </button>
-                            {dropdownOpen && (
-                                <div className="post-actions-dropdown-menu">
-                                    <Link
-                                        to={`/edit/${post.ID}`}
-                                        className="dropdown-item"
-                                        onClick={() => setDropdownOpen(false)}
-                                    >
-                                        ✏️ 수정
-                                    </Link>
-                                    <button
-                                        onClick={() => {
-                                            setDropdownOpen(false);
-                                            handleDelete();
-                                        }}
-                                        className="dropdown-item delete-item"
-                                    >
-                                        🗑️ 삭제
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                <div className="post-meta">
-                    <div id="detail-author">
-                        <img
-                            src={getAvatarUrl({ ID: post.AuthorID, Avatar: post.AuthorAvatar } as User)}
-                            alt="프로필"
-                            className="post-author-avatar"
-                        />
-                        <span className="post-author-name">{post.AuthorUsername || '익명'}</span>
-                    </div>
-                    <div id="detail-date">
-                        <span>•</span>
-                        <span>{formatDate(post.CreatedAt)}</span>
-                        {post.UpdatedAt !== post.CreatedAt && <span> • {"수정: " + formatDate(post.UpdatedAt)}</span>}
-                    </div>
-                </div>
-
-                {post.Tags && post.Tags.length > 0 && (
-                    <div className="post-tags">
-                        {post.Tags.map(tag => (
-                            <span key={tag.ID} className="post-tag">#{tag.Name}</span>
-                        ))}
-                    </div>
-                )}
-
-                <div className="post-content" onClick={handleCheckboxClick}>
-                    <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        rehypePlugins={[rehypeHighlight]}
-                        components={{
-                            input: ({ node, ...props }) => (
-                                <input {...props} disabled={false} readOnly />
-                            ),
-                            img: ({ node, ...props }) => (
-                                <img
-                                    {...props}
-                                    style={{ cursor: 'pointer', maxWidth: '100%' }}
-                                    onClick={() => window.open(props.src, '_blank')}
-                                    title="클릭하여 원본 보기"
-                                />
-                            )
-                        }}
-                    >
-                        {post.Content}
-                    </ReactMarkdown>
-                </div>
-
-                <div className="post-actions-container" style={{ marginTop: '2rem', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div className="post-actions">
+        <div className="post-detail-layout">
+            <aside className="post-detail-project-nav">
+                <ProjectNavigation postId={post.ID} />
+            </aside>
+            <div className="post-detail-main">
+                <div className="post-detail">
+                    <div className="post-header-container">
+                        <h1>{post.Title} {post.IsSecret && <span className="secret-icon" title="비밀글">🔒</span>}</h1>
                         {isAuthor && (
-                            <>
-                                <Link to={`/edit/${post.ID}`} className="btn btn-secondary" style={{ marginRight: '0.5rem' }}>수정</Link>
-                                <button onClick={handleDelete} className="btn btn-danger">삭제</button>
-                            </>
+                            <div className="post-actions-dropdown" ref={dropdownRef}>
+                                <button
+                                    className="post-actions-trigger"
+                                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                                    aria-label="게시글 옵션"
+                                >
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                        <circle cx="12" cy="5" r="2" />
+                                        <circle cx="12" cy="12" r="2" />
+                                        <circle cx="12" cy="19" r="2" />
+                                    </svg>
+                                </button>
+                                {dropdownOpen && (
+                                    <div className="post-actions-dropdown-menu">
+                                        <Link
+                                            to={`/edit/${post.ID}`}
+                                            className="dropdown-item"
+                                            onClick={() => setDropdownOpen(false)}
+                                        >
+                                            ✏️ 수정
+                                        </Link>
+                                        <button
+                                            onClick={() => {
+                                                setDropdownOpen(false);
+                                                handleDelete();
+                                            }}
+                                            className="dropdown-item delete-item"
+                                        >
+                                            🗑️ 삭제
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
-                    <Link to="/" className="btn btn-secondary">목록으로</Link>
-                </div>
 
-                <CommentSection postId={post.ID} />
+                    <div className="post-meta">
+                        <div id="detail-author">
+                            <img
+                                src={getAvatarUrl({ ID: post.AuthorID, Avatar: post.AuthorAvatar } as User)}
+                                alt="프로필"
+                                className="post-author-avatar"
+                            />
+                            <span className="post-author-name">{post.AuthorUsername || '익명'}</span>
+                        </div>
+                        <div id="detail-date">
+                            <span>•</span>
+                            <span>{formatDate(post.CreatedAt)}</span>
+                            {post.UpdatedAt !== post.CreatedAt && <span> • {"수정: " + formatDate(post.UpdatedAt)}</span>}
+                        </div>
+                    </div>
+
+                    {post.Tags && post.Tags.length > 0 && (
+                        <div className="post-tags">
+                            {post.Tags.map(tag => (
+                                <span key={tag.ID} className={`post-tag ${tag.Name === 'np' ? 'tag-np' : ''}`}>#{tag.Name}</span>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="post-content" onClick={handleCheckboxClick}>
+                        <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            rehypePlugins={[rehypeHighlight]}
+                            components={markdownComponents}
+                        >
+                            {post.Content}
+                        </ReactMarkdown>
+                    </div>
+
+                    <div className="post-actions-container" style={{ marginTop: '2rem', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="post-actions">
+                            {isAuthor && (
+                                <>
+                                    <Link to={`/edit/${post.ID}`} className="btn btn-secondary" style={{ marginRight: '0.5rem' }}>수정</Link>
+                                    <button onClick={handleDelete} className="btn btn-danger">삭제</button>
+                                </>
+                            )}
+                        </div>
+                        <Link to="/" className="btn btn-secondary">목록으로</Link>
+                    </div>
+
+                    <CommentSection postId={post.ID} />
+                </div>
             </div>
+            <aside className="post-detail-toc">
+                <TableOfContents items={tocItems} />
+            </aside>
         </div>
     );
 };

@@ -11,6 +11,7 @@ import (
 	"simplelog/database"
 	"simplelog/middleware"
 	"simplelog/models"
+	"sort"
 	"strconv"
 	"time"
 
@@ -69,6 +70,10 @@ func GetPosts(c fiber.Ctx) error {
 			query = query.Joins("JOIN post_tags ON post_tags.post_id = posts.id").
 				Joins("JOIN tags ON tags.id = post_tags.tag_id").
 				Where("tags.name LIKE ?", "%"+search+"%")
+		} else if searchType == "project" {
+			// Find posts where the FIRST tag matches 'search'
+			// Using SQLite rowid to determine order in post_tags
+			query = query.Where("posts.id IN (SELECT pt.post_id FROM post_tags pt JOIN tags t ON t.id = pt.tag_id WHERE t.name = ? AND pt.rowid = (SELECT MIN(pt2.rowid) FROM post_tags pt2 WHERE pt2.post_id = pt.post_id))", search)
 		} else {
 			// Default to title search
 			query = query.Where("title LIKE ?", "%"+search+"%")
@@ -521,4 +526,34 @@ func GetUserTags(c fiber.Ctx) error {
 	}
 
 	return c.JSON(tags)
+}
+
+// GetProjects returns a list of unique project names (first tags of posts), excluding 'np'
+func GetProjects(c fiber.Ctx) error {
+	var posts []models.Post
+	// Fetch all posts with tags
+	if err := database.DB.Preload("Tags").Find(&posts).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch projects",
+		})
+	}
+
+	projectMap := make(map[string]bool)
+	var projects []string
+
+	for _, post := range posts {
+		if len(post.Tags) > 0 {
+			firstTag := post.Tags[0].Name
+			if firstTag != "np" {
+				if !projectMap[firstTag] {
+					projectMap[firstTag] = true
+					projects = append(projects, firstTag)
+				}
+			}
+		}
+	}
+
+	sort.Strings(projects)
+
+	return c.JSON(projects)
 }

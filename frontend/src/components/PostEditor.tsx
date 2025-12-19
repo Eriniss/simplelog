@@ -330,7 +330,7 @@ const PostEditor = () => {
                     <div className="tag-input-container" style={{ border: '1px solid var(--border-color)', borderRadius: '4px', padding: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', backgroundColor: 'var(--input-bg)' }}>
                         <div className="tag-list" style={{ display: 'contents' }}>
                             {tags.map(tag => (
-                                <span key={tag} className="tag-badge">
+                                <span key={tag} className={`tag-badge ${tag === 'np' ? 'tag-np' : ''}`}>
                                     #{tag}
                                     <span className="remove-tag" onClick={() => removeTag(tag)}>×</span>
                                 </span>
