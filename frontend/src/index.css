@@ -969,6 +969,24 @@ nav {
   margin: 1rem 0;
 }
 
+/* Bold text styling */
+.post-content strong,
+.post-content b {
+  color: var(--brand-color);
+  font-weight: bold;
+}
+
+/* Link styling */
+.post-content a {
+  color: #1E90FF;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.post-content a:hover {
+  color: #0056b3;
+}
+
 /* Table Styling */
 .post-content table {
   border-collapse: collapse;
@@ -1044,6 +1062,15 @@ nav {
 
 .dark-mode .post-content blockquote code {
   background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Dark mode link styles */
+.dark-mode .post-content a {
+  color: #5eb3f6;
+}
+
+.dark-mode .post-content a:hover {
+  color: #8fcdff;
 }
 
 /* Dark mode logout hover */
